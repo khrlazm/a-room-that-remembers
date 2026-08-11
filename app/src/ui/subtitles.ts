@@ -110,6 +110,15 @@ export class DriftingSubtitles {
       true,
     );
     this.texture.hasAlpha = true;
+    // Flip V. The scene is right-handed to match glTF, which inverts how a
+    // plane's UVs run relative to the canvas: without this the caption renders
+    // with its lines in reverse order and its glyphs upside down, while
+    // horizontal reading order stays correct -- the signature of a V flip
+    // rather than a rotation. Checking the mesh's world axes does not catch it,
+    // because the mesh is oriented correctly; it is the texture's mapping onto
+    // the mesh that is inverted.
+    this.texture.vScale = -1;
+    this.texture.vOffset = 1;
 
     // Unlit text: everything comes from emissive, alpha from the same canvas.
     // Deliberately does not also assign diffuseTexture -- with disableLighting

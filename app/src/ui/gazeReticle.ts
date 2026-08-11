@@ -46,6 +46,12 @@ export class GazeReticle {
       true,
     );
     this.texture.hasAlpha = true;
+    // Same V flip as the captions -- see ui/subtitles.ts. Invisible on the ring
+    // itself, which is symmetric, but without it the progress arc fills
+    // anticlockwise from twelve instead of clockwise, which reads as time
+    // running backwards.
+    this.texture.vScale = -1;
+    this.texture.vOffset = 1;
 
     // Same unlit setup as the captions: emissive carries the colour, the same
     // canvas carries the alpha, and nothing else contributes.

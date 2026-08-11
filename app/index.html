@@ -78,19 +78,25 @@
       .note { font-size: 0.85rem; color: var(--ink-dim); max-width: 40ch; }
       #status { font-size: 0.85rem; color: var(--ink-dim); min-height: 1.5em; }
 
-      /* Subtitles. Positioned as a DOM overlay for the desktop preview only;
-         in VR they are rendered in-scene so they track the viewer's head. */
+      /* Captions are drawn in-scene, so they exist in VR and on desktop alike.
+         This DOM copy is kept in sync but visually hidden: it is the accessible
+         text for screen readers, and nothing else.
+
+         It used to be visible on desktop, which meant captions were doubled
+         there and — worse — that desktop testing never exercised the in-world
+         panel. A whole class of VR-only caption bugs was invisible until
+         somebody put the headset on. One visual system now, so what you tune on
+         a monitor is what the viewer actually gets. */
       #subtitles {
-        position: fixed;
-        left: 50%;
-        bottom: 8vh;
-        transform: translateX(-50%);
-        max-width: min(46ch, 90vw);
-        text-align: center;
-        font-size: clamp(1rem, 2.2vw, 1.35rem);
-        text-shadow: 0 2px 12px rgba(0, 0, 0, 0.9);
-        pointer-events: none;
-        z-index: 5;
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        margin: -1px;
+        padding: 0;
+        overflow: hidden;
+        clip-path: inset(50%);
+        white-space: nowrap;
+        border: 0;
       }
     </style>
   </head>
