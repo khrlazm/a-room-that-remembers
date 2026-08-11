@@ -2,7 +2,7 @@ import type { Scene } from '@babylonjs/core/scene';
 import type { Camera } from '@babylonjs/core/Cameras/camera';
 import type { Mesh } from '@babylonjs/core/Meshes/mesh';
 import { Color3 } from '@babylonjs/core/Maths/math.color';
-import { Vector3 } from '@babylonjs/core/Maths/math.vector';
+import { Quaternion, Vector3 } from '@babylonjs/core/Maths/math.vector';
 import { DynamicTexture } from '@babylonjs/core/Materials/Textures/dynamicTexture';
 import { StandardMaterial } from '@babylonjs/core/Materials/standardMaterial';
 import { CreatePlane } from '@babylonjs/core/Meshes/Builders/planeBuilder';
@@ -12,16 +12,18 @@ import { UI_RENDER_GROUP } from '../engine/comfort';
 import { FrameClock } from '../engine/clock';
 
 /** Reading distance. Close enough to read, far enough not to strain focus. */
-const DISTANCE = 1.85;
+const DISTANCE = 1.45;
 /** How far below eye level the panel sits. */
-const DROP = 0.62;
+const DROP = 0.52;
 /** Head movement smaller than this leaves the panel alone entirely. */
-const DEAD_ZONE_RADIANS = 0.28; // ~16 degrees
-/** Hard limit on how far behind the head the panel may fall. Guarantees it is
- *  always within the forward cone, so it can never be lost off to one side. */
-const MAX_LAG_RADIANS = 0.42; // ~24 degrees
-/** Fraction of the surplus angle closed per second once drifting starts. */
-const DRIFT_RATE = 1.8;
+const DEAD_ZONE_RADIANS = 0.32; // ~18 degrees
+/** Hard limit on how far behind the head the panel may fall, so it can never be
+ *  lost off to one side. Generous: the lag is the whole point, and clamping it
+ *  tightly is what made an earlier version read as merely head-locked. */
+const MAX_LAG_RADIANS = 1.05; // ~60 degrees
+/** Fraction of the surplus angle closed per second once drifting starts. Low
+ *  enough that the panel visibly trails the head rather than snapping after it. */
+const DRIFT_RATE = 1.1;
 
 const CANVAS_WIDTH = 1024;
 const CANVAS_HEIGHT = 288;
@@ -112,6 +114,12 @@ export class DriftingSubtitles {
   private drop = DROP;
   private forwardSign = 1;
   private needsMeasure = true;
+
+  // Scratch quaternions, reused each frame rather than allocated.
+  private readonly cameraRotation = new Quaternion();
+  private readonly desiredRotation = new Quaternion();
+  private readonly inverseRotation = new Quaternion();
+  private readonly localRotation = new Quaternion();
 
   constructor(private readonly scene: Scene) {
     this.texture = new DynamicTexture(
@@ -233,6 +241,32 @@ export class DriftingSubtitles {
     this.mesh.position.set(0, -this.drop, DISTANCE * this.forwardSign);
   }
 
+  /**
+   * Hold the panel level and at a chosen world yaw, despite being parented to
+   * the camera.
+   *
+   * Parenting is what makes the caption reliably present in an XR session, but
+   * it means inheriting the head's pitch and roll too -- so the panel tipped
+   * and swung with every nod, which is exactly the head-locked feel a drifting
+   * caption is meant to avoid. Cancelling the camera's rotation and
+   * substituting a yaw-only one keeps the placement structural while making the
+   * orientation behave as though the panel were sitting in the room.
+   */
+  private orient(camera: Camera, worldYaw: number): void {
+    camera.getWorldMatrix().decompose(undefined, this.cameraRotation, undefined);
+    Quaternion.RotationYawPitchRollToRef(worldYaw, 0, 0, this.desiredRotation);
+
+    // local = inverse(parent world) * desired world
+    Quaternion.InverseToRef(this.cameraRotation, this.inverseRotation);
+    this.inverseRotation.multiplyToRef(this.desiredRotation, this.localRotation);
+
+    if (!this.pivot.rotationQuaternion) {
+      this.pivot.rotationQuaternion = this.localRotation.clone();
+    } else {
+      this.pivot.rotationQuaternion.copyFrom(this.localRotation);
+    }
+  }
+
   private draw(text: string): void {
     const ctx = this.texture.getContext() as CanvasRenderingContext2D;
     ctx.clearRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
@@ -305,7 +339,8 @@ export class DriftingSubtitles {
       }
       // Never let it fall outside the forward cone, whatever happens above.
       this.lag = Math.max(-MAX_LAG_RADIANS, Math.min(MAX_LAG_RADIANS, this.lag));
-      this.pivot.rotation.y = this.lag;
+
+      this.orient(camera, headYaw + this.lag);
     }
 
     const difference = this.targetOpacity - this.opacity;

@@ -152,7 +152,18 @@ async function main(): Promise<void> {
 
     // The opening beat could not play before this gesture, since there was no
     // audio context to play it into. Start it now.
-    void sequencer.playHubBeat();
+    //
+    // The gaze stays disarmed until it finishes. The viewer's vantage faces the
+    // bench and the radio sits right there, so the dwell would otherwise
+    // complete on its own within seconds and cut the narration off mid-sentence
+    // with an era nobody chose. The last line of the opening is also the only
+    // instruction the piece gives -- "look at a thing long enough and it'll
+    // tell you when" -- which does not work if it never gets to finish saying it.
+    gaze.setArmed(false);
+    void sequencer
+      .playHubBeat()
+      .catch((error: unknown) => console.warn('[story] opening beat failed', error))
+      .finally(() => gaze.setArmed(true));
   };
 
   console.info(
