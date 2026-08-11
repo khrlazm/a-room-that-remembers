@@ -1,6 +1,9 @@
 import { createStage, EYE_HEIGHT } from './engine/bootstrap';
 import { anchorPosition, loadChapter } from './assets/chapters';
+import { exposeDebugHandle, PerfMonitor } from './dev/debug';
 import { Vector3 } from '@babylonjs/core/Maths/math.vector';
+
+const params = new URLSearchParams(window.location.search);
 
 const canvas = document.getElementById('render-canvas') as HTMLCanvasElement;
 const gate = document.getElementById('gate') as HTMLDivElement;
@@ -41,6 +44,14 @@ async function main(): Promise<void> {
       `${hub.anchors.size} anchors, ${hub.gates.size} gates ` +
       `(${[...hub.gates.keys()].join(', ') || 'none'})`,
   );
+
+  const perf = new PerfMonitor(stage.scene, stage.engine, {
+    overlay: params.has('hud'),
+    // On a headset there is no overlay to read, so stats go to the console
+    // where remote debugging over adb can see them.
+    logIntervalMs: params.has('hud') || params.has('perf') ? 5000 : 0,
+  });
+  exposeDebugHandle({ stage, hub, perf });
 
   const xr = (navigator as Navigator & { xr?: XRSystem }).xr;
   let vrSupported = false;
