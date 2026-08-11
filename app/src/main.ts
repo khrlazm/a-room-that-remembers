@@ -45,6 +45,7 @@ async function main(): Promise<void> {
   fader.attach(stage.previewCamera);
 
   const captions = new DriftingSubtitles(stage.scene);
+  captions.attach(stage.previewCamera);
   const reticle = new GazeReticle(stage.scene);
 
   setStatus('Loading the room…');
@@ -168,13 +169,19 @@ async function main(): Promise<void> {
     vantageFrom: stage.previewCamera,
     onEnter: () => {
       const xrCamera = xr?.experience.baseExperience.camera;
-      if (xrCamera) fader.attach(xrCamera);
-      // Put the caption where the viewer is actually facing when they arrive,
-      // rather than leaving it behind them from the desktop heading.
-      captions.recentre();
+      if (xrCamera) {
+        fader.attach(xrCamera);
+        // Captions are parented to the camera, so this is what actually puts
+        // them in front of the viewer in the headset rather than leaving them
+        // attached to the idle desktop camera.
+        captions.attach(xrCamera);
+      }
       dismissGate();
     },
-    onExit: () => fader.attach(stage.previewCamera),
+    onExit: () => {
+      fader.attach(stage.previewCamera);
+      captions.attach(stage.previewCamera);
+    },
   });
 
   exposeDebugHandle({ stage, story, sequencer, gaze, fader, captions, reticle, perf, xr, audio: () => soundscape });
@@ -185,8 +192,9 @@ async function main(): Promise<void> {
     captions.say('The quick brown fox — if you can read this the right way up, the caption is correct.');
     console.info(
       '[subtest] adjust live from the console:\n' +
-        "  __room.captions.setDrop(0.9)   // lower the panel\n" +
-        "  __room.captions.say('text')     // change the line",
+        '  __room.captions.setDrop(0.9)       // lower the panel\n' +
+        '  __room.captions.setDistance(1.5)   // bring it closer\n' +
+        "  __room.captions.say('text')        // change the line",
     );
   }
 

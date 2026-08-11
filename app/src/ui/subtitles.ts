@@ -1,34 +1,35 @@
 import type { Scene } from '@babylonjs/core/scene';
+import type { Camera } from '@babylonjs/core/Cameras/camera';
 import type { Mesh } from '@babylonjs/core/Meshes/mesh';
 import { Color3 } from '@babylonjs/core/Maths/math.color';
+import { Vector3 } from '@babylonjs/core/Maths/math.vector';
 import { DynamicTexture } from '@babylonjs/core/Materials/Textures/dynamicTexture';
 import { StandardMaterial } from '@babylonjs/core/Materials/standardMaterial';
 import { CreatePlane } from '@babylonjs/core/Meshes/Builders/planeBuilder';
+import { TransformNode } from '@babylonjs/core/Meshes/transformNode';
 
 import { UI_RENDER_GROUP } from '../engine/comfort';
 import { FrameClock } from '../engine/clock';
 
 /** Reading distance. Close enough to read, far enough not to strain focus. */
 const DISTANCE = 1.85;
-/** How far below eye level the panel sits. Low enough to stay clear of what
- *  the viewer is looking at, high enough not to need a neck movement. */
-const DROP = 0.68;
-/** Head movement smaller than this leaves the panel entirely alone. */
+/** How far below eye level the panel sits. */
+const DROP = 0.62;
+/** Head movement smaller than this leaves the panel alone entirely. */
 const DEAD_ZONE_RADIANS = 0.28; // ~16 degrees
+/** Hard limit on how far behind the head the panel may fall. Guarantees it is
+ *  always within the forward cone, so it can never be lost off to one side. */
+const MAX_LAG_RADIANS = 0.42; // ~24 degrees
 /** Fraction of the surplus angle closed per second once drifting starts. */
 const DRIFT_RATE = 1.8;
 
 const CANVAS_WIDTH = 1024;
 const CANVAS_HEIGHT = 288;
-const FONT_SIZE = 44;
-const FONT = `${FONT_SIZE}px ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif`;
+const FONT = '44px ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif';
 const LINE_HEIGHT = 56;
 const MARGIN = 72;
 const PAD = 26;
 
-/** Y-axis billboarding: Babylon computes the facing, so nothing here has to
- *  reason about handedness. Manual yaw was the source of the panel rendering
- *  mirrored, and then edge-on. */
 const BILLBOARDMODE_Y = 2;
 
 function shortestAngle(from: number, to: number): number {
@@ -75,32 +76,42 @@ function roundedRect(
 /**
  * In-world captions that lag behind the head.
  *
- * A caption rigidly locked to the view is among the least comfortable things
- * you can put in VR: it never moves relative to the eye, so it reads as
- * something stuck to your face. Locking it to the world instead means it is
- * gone the moment you look away.
+ * **Parented to the camera, not placed in world space.** The previous version
+ * computed a world position from `activeCamera.globalPosition` each frame,
+ * which works on a desktop camera and fails in an immersive session: the XR
+ * camera is a rig whose pose is updated from the device's own frame callback,
+ * and a position derived in `onBeforeRender` could land somewhere the viewer
+ * never looked. The caption was correct in every respect except being on
+ * screen. Parenting makes placement structural -- there is no pose maths left
+ * to get wrong, and the worst possible failure is a caption that sits directly
+ * ahead instead of drifting.
  *
- * So: yaw-only following with a dead zone. Small head movements leave the panel
- * completely alone, which is what makes it feel like an object rather than a
- * HUD; larger turns let it drift after you, easing rather than snapping. Pitch
- * is ignored deliberately -- a caption that bobs as you nod is far more
- * distracting than one sitting at a steady height.
+ * The lazy drift is then a rotation of a pivot node between the camera and the
+ * panel. A caption rigidly locked to the view is among the least comfortable
+ * things in VR -- it never moves relative to the eye, so it reads as something
+ * stuck to your face. Here the panel holds still in the world while the head
+ * moves within a dead zone, and only eases after you past it. The lag is
+ * clamped, so it always stays inside the forward cone.
  *
- * Orientation is handled by Y-billboarding rather than by setting rotation from
- * a computed yaw. The scene is right-handed to match glTF, and the hand-rolled
- * version used the left-handed sign convention: the panel rendered mirrored,
- * and once the viewer turned at all it swung edge-on and vanished.
+ * Pitch is deliberately ignored: a caption that bobs as you nod is far more
+ * distracting than one at a steady height.
  */
 export class DriftingSubtitles {
+  private readonly pivot: TransformNode;
   private readonly mesh: Mesh;
   private readonly texture: DynamicTexture;
   private readonly material: StandardMaterial;
-  private yaw = 0;
+  private readonly clock = new FrameClock();
+
+  /** Signed lag, in radians, of the panel behind the head's yaw. */
+  private lag = 0;
+  private lastHeadYaw = 0;
+  private haveHeadYaw = false;
   private opacity = 0;
   private targetOpacity = 0;
-  private initialised = false;
   private drop = DROP;
-  private readonly clock = new FrameClock();
+  private forwardSign = 1;
+  private needsMeasure = true;
 
   constructor(private readonly scene: Scene) {
     this.texture = new DynamicTexture(
@@ -110,21 +121,13 @@ export class DriftingSubtitles {
       true,
     );
     this.texture.hasAlpha = true;
-    // Flip V. The scene is right-handed to match glTF, which inverts how a
-    // plane's UVs run relative to the canvas: without this the caption renders
-    // with its lines in reverse order and its glyphs upside down, while
-    // horizontal reading order stays correct -- the signature of a V flip
-    // rather than a rotation. Checking the mesh's world axes does not catch it,
-    // because the mesh is oriented correctly; it is the texture's mapping onto
-    // the mesh that is inverted.
+    // Flip V: the scene is right-handed to match glTF, which inverts how a
+    // plane's UVs run relative to the canvas. Without this the lines come out
+    // in reverse order with inverted glyphs, while horizontal reading order
+    // stays correct -- the signature of a V flip rather than a rotation.
     this.texture.vScale = -1;
     this.texture.vOffset = 1;
 
-    // Unlit text: everything comes from emissive, alpha from the same canvas.
-    // Deliberately does not also assign diffuseTexture -- with disableLighting
-    // the diffuse term contributes nothing, and having the texture bound to
-    // three slots at once made the earlier version's alpha behaviour hard to
-    // reason about when it stopped drawing entirely.
     this.material = new StandardMaterial('subtitle-mat', scene);
     this.material.emissiveTexture = this.texture;
     this.material.opacityTexture = this.texture;
@@ -133,9 +136,9 @@ export class DriftingSubtitles {
     this.material.specularColor = Color3.Black();
     this.material.disableLighting = true;
     this.material.backFaceCulling = false;
-    // UI is drawn after the room with depth already cleared, so depth writes
-    // would only let one UI element occlude another.
     this.material.disableDepthWrite = true;
+
+    this.pivot = new TransformNode('subtitle-pivot', scene);
 
     this.mesh = CreatePlane(
       'subtitles',
@@ -143,6 +146,7 @@ export class DriftingSubtitles {
       scene,
     );
     this.mesh.material = this.material;
+    this.mesh.parent = this.pivot;
     this.mesh.isPickable = false;
     this.mesh.billboardMode = BILLBOARDMODE_Y;
     this.mesh.renderingGroupId = UI_RENDER_GROUP;
@@ -150,6 +154,26 @@ export class DriftingSubtitles {
     this.mesh.setEnabled(false);
 
     scene.onBeforeRenderObservable.add(() => this.update());
+  }
+
+  /**
+   * Follow a camera. Called again when XR swaps in its own, exactly as the
+   * fader is -- which is the one piece of camera-attached UI that has been
+   * visible in the headset all along.
+   */
+  attach(camera: Camera): void {
+    this.pivot.parent = camera;
+    this.pivot.position.setAll(0);
+    this.pivot.rotation.set(0, 0, 0);
+
+    // Deferred to the first rendered frame rather than measured now: attach
+    // happens during setup, before the camera has been aimed or had a world
+    // matrix computed, so probing here reads stale values and reliably picks
+    // the wrong direction.
+    this.needsMeasure = true;
+    this.place();
+    this.haveHeadYaw = false;
+    this.lag = 0;
   }
 
   /** Show a line, or clear the caption when passed an empty string. */
@@ -163,14 +187,50 @@ export class DriftingSubtitles {
     }
   }
 
-  /** Snap to the current head direction, e.g. on entering a session. */
+  /** Drop the lag so the panel snaps in front, e.g. on entering a session. */
   recentre(): void {
-    this.initialised = false;
+    this.lag = 0;
+    this.haveHeadYaw = false;
+    this.pivot.rotation.y = 0;
   }
 
   /** Live adjustment while wearing the headset, via the debug handle. */
   setDrop(metres: number): void {
     this.drop = metres;
+    this.place();
+  }
+
+  /** Live adjustment: how far in front the panel sits. */
+  setDistance(metres: number): void {
+    this.mesh.position.z = metres * this.forwardSign;
+  }
+
+  /**
+   * Work out which way is forward by trying it, rather than by reasoning.
+   *
+   * Comparing `camera.getDirection(Axis.Z)` against the forward ray gives the
+   * *opposite* answer to what a camera-parented child actually inherits, which
+   * put the caption exactly behind the viewer -- measured at 146 degrees
+   * off-axis while the maths said it was in front. Rather than encode a
+   * Babylon quirk as a constant and hope it holds across versions, camera
+   * types and XR rigs, this places a probe one metre along local +Z and checks
+   * where it lands.
+   */
+  private measureForwardSign(camera: Camera): number {
+    const previous = this.mesh.position.clone();
+
+    this.mesh.position.set(0, 0, 1);
+    this.mesh.computeWorldMatrix(true);
+    const offset = this.mesh.getAbsolutePosition().subtract(camera.globalPosition);
+    const sign = Vector3.Dot(offset, camera.getForwardRay(1).direction) >= 0 ? 1 : -1;
+
+    this.mesh.position.copyFrom(previous);
+    this.mesh.computeWorldMatrix(true);
+    return sign;
+  }
+
+  private place(): void {
+    this.mesh.position.set(0, -this.drop, DISTANCE * this.forwardSign);
   }
 
   private draw(text: string): void {
@@ -216,32 +276,37 @@ export class DriftingSubtitles {
 
   private update(): void {
     const camera = this.scene.activeCamera;
-    if (!camera) return;
-
     const deltaSeconds = this.clock.tick();
-    const forward = camera.getForwardRay(1).direction;
-    const headYaw = Math.atan2(forward.x, forward.z);
 
-    if (!this.initialised) {
-      this.yaw = headYaw;
-      this.initialised = true;
+    if (camera) {
+      if (this.needsMeasure) {
+        this.needsMeasure = false;
+        this.forwardSign = this.measureForwardSign(camera);
+        this.place();
+      }
+
+      const forward = camera.getForwardRay(1).direction;
+      const headYaw = Math.atan2(forward.x, forward.z);
+
+      if (this.haveHeadYaw) {
+        // The panel holds still in the world, so a head turn shows up as lag
+        // in the opposite direction.
+        this.lag -= shortestAngle(this.lastHeadYaw, headYaw);
+      }
+      this.lastHeadYaw = headYaw;
+      this.haveHeadYaw = true;
+
+      // Past the dead zone, ease back toward it -- not to zero, so the panel
+      // settles at the edge rather than re-centring itself on every glance.
+      const magnitude = Math.abs(this.lag);
+      if (magnitude > DEAD_ZONE_RADIANS) {
+        const surplus = magnitude - DEAD_ZONE_RADIANS;
+        this.lag -= Math.sign(this.lag) * surplus * Math.min(DRIFT_RATE * deltaSeconds, 1);
+      }
+      // Never let it fall outside the forward cone, whatever happens above.
+      this.lag = Math.max(-MAX_LAG_RADIANS, Math.min(MAX_LAG_RADIANS, this.lag));
+      this.pivot.rotation.y = this.lag;
     }
-
-    const offset = shortestAngle(this.yaw, headYaw);
-    if (Math.abs(offset) > DEAD_ZONE_RADIANS) {
-      // Chase only the part of the turn beyond the dead zone, so the panel
-      // settles at its edge rather than re-centring itself every time.
-      const surplus = offset - Math.sign(offset) * DEAD_ZONE_RADIANS;
-      this.yaw += surplus * Math.min(DRIFT_RATE * deltaSeconds, 1);
-    }
-
-    // Position only. Facing is billboarded, so no rotation is set here.
-    const eye = camera.globalPosition;
-    this.mesh.position.set(
-      eye.x + Math.sin(this.yaw) * DISTANCE,
-      eye.y - this.drop,
-      eye.z + Math.cos(this.yaw) * DISTANCE,
-    );
 
     const difference = this.targetOpacity - this.opacity;
     const step = deltaSeconds * 3.2;
@@ -252,6 +317,7 @@ export class DriftingSubtitles {
 
   dispose(): void {
     this.mesh.dispose();
+    this.pivot.dispose();
     this.material.dispose();
     this.texture.dispose();
   }
@@ -259,7 +325,7 @@ export class DriftingSubtitles {
 
 /** Keep the DOM caption in sync alongside the in-world one. */
 export function mirrorToDom(element: HTMLElement, line: string): void {
-  // Updated even in VR, where it is not visible: it is the accessible text, and
-  // it is what a flat-screen viewer or a screen reader gets.
+  // Visually hidden, but kept current: it is the accessible text for screen
+  // readers and the transcript a flat-screen viewer can select.
   element.textContent = line;
 }
