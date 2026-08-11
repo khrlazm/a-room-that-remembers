@@ -12,6 +12,8 @@
 import { NodeIO } from '@gltf-transform/core';
 import { ALL_EXTENSIONS } from '@gltf-transform/extensions';
 
+import { mp3DurationSeconds } from './mp3-duration.mjs';
+
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { basename, dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -19,6 +21,7 @@ import { fileURLToPath } from 'node:url';
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const CHAPTERS_DIR = join(ROOT, 'app', 'public', 'assets', 'chapters');
 const STORY_PATH = join(ROOT, 'content', 'story.json');
+const VO_DIR = join(ROOT, 'content', 'vo');
 
 // Per chapter. Generous against current usage -- these exist to catch a
 // regression (someone subdividing a mesh, or dropping in a 4K texture), not to
@@ -161,6 +164,41 @@ async function main() {
       }
       if (beat.chapter && !files.includes(`${beat.chapter}.glb`)) {
         problems.push(`story.json: beat "${beat.id}" needs chapter "${beat.chapter}", which is not built`);
+      }
+
+      // Subtitle cues against the real length of the take. Timings written
+      // against a script are guesses -- a performer who reads faster than
+      // expected leaves the last lines scheduled past the end of the audio,
+      // where they simply never appear. That is invisible until someone
+      // watches the whole beat, so the build checks it instead.
+      if (beat.voice) {
+        const takePath = join(VO_DIR, beat.voice);
+        if (!existsSync(takePath)) {
+          problems.push(`story.json: beat "${beat.id}" names voice "${beat.voice}", which is missing`);
+          continue;
+        }
+
+        const seconds = mp3DurationSeconds(takePath);
+        const audioMs = seconds * 1000;
+        const late = (beat.lines ?? []).filter((line) => line.atMs >= audioMs);
+        if (late.length > 0) {
+          problems.push(
+            `story.json: beat "${beat.id}" has ${late.length} line(s) cued at or after ` +
+              `the end of ${beat.voice} (${seconds.toFixed(2)}s) — they would never show. ` +
+              `Latest cue is ${Math.max(...late.map((l) => l.atMs))}ms.`,
+          );
+        }
+        if (beat.durationMs < audioMs) {
+          problems.push(
+            `story.json: beat "${beat.id}" durationMs ${beat.durationMs} is shorter than ` +
+              `${beat.voice} (${Math.round(audioMs)}ms) — the beat would cut the voice off.`,
+          );
+        }
+        notes.push(
+          `  ${('vo:' + beat.id).padEnd(14)} ${seconds.toFixed(2).padStart(6)}s  ` +
+            `${(beat.lines ?? []).length} lines  last cue ` +
+            `${Math.max(0, ...(beat.lines ?? []).map((l) => l.atMs))}ms`,
+        );
       }
     }
   } else {

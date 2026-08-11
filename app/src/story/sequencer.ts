@@ -3,6 +3,7 @@ import type { Scene } from '@babylonjs/core/scene';
 import type { Chapter } from '../assets/chapters';
 import { loadChapter } from '../assets/chapters';
 import type { Fader } from '../engine/comfort';
+import type { VoicePlayer } from '../audio/voice';
 import type { Beat, Story } from './types';
 
 export interface SequencerDeps {
@@ -13,6 +14,12 @@ export interface SequencerDeps {
   /** Called when a beat begins, so input can be armed or disarmed. */
   onBeatStart?: (beat: Beat) => void;
   onBeatEnd?: (beat: Beat) => void;
+  /** Voiceover playback. Absent before the first user gesture. */
+  voice?: () => VoicePlayer | null;
+  /** Base URL for voiceover files. */
+  voiceBase?: string;
+  /** Raised while a take is playing, so the ambience can duck under it. */
+  onVoice?: (playing: boolean) => void;
 }
 
 /**
@@ -50,10 +57,22 @@ export class Sequencer {
     hub.setVisible(true);
     this.hub = hub;
 
-    const arrival = this.story.beats.find((beat) => beat.kind === 'hub');
-    if (arrival) void this.playLines(arrival);
-
     return hub;
+  }
+
+  /**
+   * Play the opening beat.
+   *
+   * Separate from `start()` because it cannot run until the viewer's first
+   * gesture: there is no AudioContext before that, so the narration would be
+   * silent while its subtitles played out regardless.
+   */
+  async playHubBeat(): Promise<void> {
+    const arrival = this.story.beats.find((beat) => beat.kind === 'hub');
+    if (!arrival) return;
+    this.preloadVoice(this.story.beats.find((beat) => beat.kind === 'era'));
+    await this.playLines(arrival);
+    this.deps.onLine('');
   }
 
   /**
@@ -65,6 +84,7 @@ export class Sequencer {
   prefetch(gateId: string): void {
     const beat = this.beatForGate(gateId);
     if (!beat) return;
+    this.preloadVoice(beat);
     void this.load(beat.chapter).catch((error: unknown) => {
       console.warn(`[story] prefetch of ${beat.chapter} failed`, error);
     });
@@ -84,7 +104,7 @@ export class Sequencer {
 
       const { fadeOutMs, fadeInMs } = this.story.settings;
 
-      this.clearLines();
+        this.clearLines();
       this.deps.onLine('');
       await this.deps.fader.to(1, fadeOutMs);
 
@@ -115,17 +135,67 @@ export class Sequencer {
     }
   }
 
-  /** Schedule a beat's subtitles and resolve when the beat's time is up. */
-  private playLines(beat: Beat): Promise<void> {
+  /**
+   * Play a beat's voiceover and its subtitles, resolving when the beat ends.
+   *
+   * When there is a take, captions are driven from the audio's own playback
+   * position rather than from timers started alongside it. Those two things
+   * drift: audio can start late, stall while buffering, or be resumed by the
+   * browser after a tab loses focus, and a timer knows none of it. Reading
+   * `currentTime` means a caption cannot desynchronise from the voice it is
+   * captioning, which is the one failure a viewer notices immediately.
+   */
+  private async playLines(beat: Beat): Promise<void> {
+    this.clearLines();
+
+    const player = this.deps.voice?.() ?? null;
+    if (beat.voice && player) {
+      const url = `${this.deps.voiceBase ?? '/'}vo/${beat.voice}`;
+      let shown = -1;
+
+      this.deps.onVoice?.(true);
+      try {
+        await player.play(url, (seconds) => {
+          const ms = seconds * 1000;
+          // Latest line whose cue has passed.
+          let index = -1;
+          for (let i = 0; i < beat.lines.length; i += 1) {
+            if (beat.lines[i].atMs <= ms) index = i;
+            else break;
+          }
+          if (index !== shown) {
+            shown = index;
+            this.deps.onLine(index >= 0 ? beat.lines[index].text : '');
+          }
+        });
+      } catch (error) {
+        console.warn(`[story] voiceover for "${beat.id}" failed, falling back to timers`, error);
+        await this.timedLines(beat);
+      } finally {
+        this.deps.onVoice?.(false);
+      }
+      return;
+    }
+
+    await this.timedLines(beat);
+  }
+
+  /** Fallback when a beat has no take yet, or playback failed. */
+  private timedLines(beat: Beat): Promise<void> {
     this.clearLines();
     for (const line of beat.lines) {
-      this.lineTimers.push(
-        window.setTimeout(() => this.deps.onLine(line.text), line.atMs),
-      );
+      this.lineTimers.push(window.setTimeout(() => this.deps.onLine(line.text), line.atMs));
     }
     return new Promise((resolve) => {
       this.lineTimers.push(window.setTimeout(resolve, beat.durationMs));
     });
+  }
+
+  /** Warm a beat's take so it starts the instant the beat does. */
+  private preloadVoice(beat: Beat | undefined): void {
+    if (!beat?.voice) return;
+    const player = this.deps.voice?.();
+    player?.preload(`${this.deps.voiceBase ?? '/'}vo/${beat.voice}`);
   }
 
   private clearLines(): void {

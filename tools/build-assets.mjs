@@ -21,6 +21,8 @@ import { ALL_EXTENSIONS } from '@gltf-transform/extensions';
 import { textureCompress } from '@gltf-transform/functions';
 import sharp from 'sharp';
 
+import { mp3DurationSeconds } from './mp3-duration.mjs';
+
 import { copyFileSync, existsSync, mkdirSync, readdirSync, statSync } from 'node:fs';
 import { basename, dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -30,6 +32,8 @@ const RAW_DIR = join(ROOT, 'build', 'raw');
 const OUT_DIR = join(ROOT, 'app', 'public', 'assets', 'chapters');
 const STORY_SRC = join(ROOT, 'content', 'story.json');
 const STORY_OUT = join(ROOT, 'app', 'public', 'story.json');
+const VO_SRC = join(ROOT, 'content', 'vo');
+const VO_OUT = join(ROOT, 'app', 'public', 'vo');
 
 const WEBP_QUALITY = 90;
 
@@ -78,6 +82,22 @@ async function main() {
     console.log(`story.json: copied to app/public/`);
   } else {
     console.warn(`warning: ${STORY_SRC} not found -- the runtime will have no beats`);
+  }
+
+  // Voiceover ships as-is. Re-encoding it here would be a lossy pass over
+  // something already lossy, for a saving that does not matter next to a
+  // multi-megabyte JavaScript bundle.
+  if (existsSync(VO_SRC)) {
+    mkdirSync(VO_OUT, { recursive: true });
+    const takes = readdirSync(VO_SRC).filter((file) => /\.(mp3|ogg|m4a)$/i.test(file));
+    for (const take of takes) {
+      copyFileSync(join(VO_SRC, take), join(VO_OUT, take));
+      const seconds = take.endsWith('.mp3') ? mp3DurationSeconds(join(VO_SRC, take)) : null;
+      console.log(
+        `vo/${take}: ${kb(statSync(join(VO_SRC, take)).size)}` +
+          (seconds === null ? '' : `  ${seconds.toFixed(2)}s`),
+      );
+    }
   }
 
   console.log(

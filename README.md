@@ -33,6 +33,24 @@ runtime code change. `tools/validate.mjs` enforces it on the compressed output.
 | mesh `GATE_<id>` + `gateId` extra | node + extras | gaze-dwell target |
 | `unlit` extra | extras | `PBRMaterial.unlit = true` |
 
+### Sound
+
+Ambience is **synthesised, not streamed**: brown-noise room tone, mains hum and
+its odd harmonics from the radio, band-limited static through a narrow filter so
+it reads as coming out of a small wooden box, weather through the window on a
+slow LFO, filament buzz at twice mains. No payload, never audibly loops, and
+every layer is HRTF-panned from the camera and crossfaded per era.
+
+Voiceover is the exception — a real performance, streamed. It is deliberately
+**not** spatialised: he is the room's memory of itself, not a man in the corner,
+and a positioned voice would invite the viewer to turn and look for a body that
+is not there. It sits on its own bus so the ambience can duck beneath it.
+
+Subtitles are driven from the audio's own `currentTime`, never from timers
+started alongside it. Those drift — playback can start late, stall, or be
+resumed by the browser after focus loss — and a caption out of step with the
+voice is the first thing a viewer notices.
+
 ## Layout
 
 ```
@@ -40,8 +58,20 @@ app/          Vite + TypeScript runtime
 content/
   blender/    procedural authoring: lib/ helpers, scenes/ one per chapter
   story.json  the narrative manifest (beats, gates, timings)
-tools/        build-blender, build-assets, validate
+  vo/         voiceover takes and the script they were recorded from
+tools/        build-blender, build-assets, validate, mp3-duration
 ```
+
+## Re-timing subtitles
+
+Cues in `story.json` were written against the script, then scaled to the
+delivered takes. Scaling assumes even pacing, which speech is not. To fix them
+by ear, run with `?capture=1`, play a beat, and tap **C** as each line begins;
+**P** prints a ready-made `lines` array to paste back.
+
+`npm run validate` fails the build if any cue lands at or after the end of its
+take — a line scheduled past the audio never appears, and that is invisible
+until somebody watches the whole beat.
 
 ## Building
 

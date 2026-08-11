@@ -21,6 +21,8 @@ export interface Beat {
   chapter: string;
   /** Gate id that enters this beat. Absent for the hub. */
   gate?: string;
+  /** Voiceover filename under /vo/. Beats without one fall back to timers. */
+  voice?: string;
   durationMs: number;
   lines: Line[];
 }

@@ -8,7 +8,10 @@ import { loadStory } from './story/types';
 import { GazeReticle } from './ui/gazeReticle';
 import { DriftingSubtitles, mirrorToDom } from './ui/subtitles';
 import { HUB_SOUND, Soundscape, WORKING_YEARS_SOUND } from './audio/procedural';
+import { VoicePlayer } from './audio/voice';
+import type { Beat } from './story/types';
 import { exposeDebugHandle, PerfMonitor } from './dev/debug';
+import { TimingCapture } from './dev/timing';
 import { Vector3 } from '@babylonjs/core/Maths/math.vector';
 
 const params = new URLSearchParams(window.location.search);
@@ -47,25 +50,45 @@ async function main(): Promise<void> {
   setStatus('Loading the room…');
   const story = await loadStory(import.meta.env.BASE_URL);
 
+  // Warm the opening take's HTTP cache now. The AudioContext cannot exist
+  // before the viewer's first gesture, and that same gesture starts playback --
+  // so without this the first line waits on a cold download of half a megabyte
+  // while the viewer stands in a silent room wondering if it is broken.
+  const opening = story.beats.find((beat) => beat.kind === 'hub');
+  if (opening?.voice) {
+    void fetch(`${import.meta.env.BASE_URL}vo/${opening.voice}`).catch(() => undefined);
+  }
+
   // Created on the first user gesture: browsers will not start an AudioContext
   // before one, and a silently mute experience is a miserable thing to debug.
   let soundscape: Soundscape | null = null;
+  let voice: VoicePlayer | null = null;
 
   let gaze: GazeController;
+  let currentBeat: Beat | null = null;
 
   const sequencer = new Sequencer(story, {
     scene: stage.scene,
     fader,
+    voice: () => voice,
+    voiceBase: import.meta.env.BASE_URL,
     onLine: (text) => {
       captions.say(text);
       mirrorToDom(subtitleElement, text);
     },
+    onVoice: (playing) => {
+      // Pull the room down under the voice. Only the ambience moves -- the
+      // voice sits on its own bus for exactly this reason.
+      soundscape?.duck(playing ? 0.4 : 1, playing ? 0.8 : 1.6);
+    },
     onBeatStart: (beat) => {
+      currentBeat = beat;
       gaze.setArmed(false);
       reticle.hide();
       soundscape?.apply(SOUND_BY_CHAPTER[beat.chapter] ?? HUB_SOUND);
     },
     onBeatEnd: () => {
+      currentBeat = null;
       gaze.setArmed(true);
       soundscape?.apply(HUB_SOUND);
     },
@@ -114,9 +137,21 @@ async function main(): Promise<void> {
   const beginAudio = () => {
     if (soundscape) return;
     soundscape = Soundscape.create();
+    voice = new VoicePlayer(soundscape.context, soundscape.voiceBus);
     void soundscape.start(HUB_SOUND).catch((error: unknown) => {
       console.warn('[audio] could not start', error);
     });
+
+    if (params.has('capture')) {
+      new TimingCapture(
+        () => voice,
+        () => (currentBeat ?? story.beats[0]).lines.map((line) => line.text),
+      );
+    }
+
+    // The opening beat could not play before this gesture, since there was no
+    // audio context to play it into. Start it now.
+    void sequencer.playHubBeat();
   };
 
   console.info(

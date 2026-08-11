@@ -84,10 +84,18 @@ export class Soundscape {
   private readonly humOscillators: OscillatorNode[] = [];
   private started = false;
 
+  /** Where voiceover joins the graph. Kept out of `master` on purpose, so the
+   *  ambience can duck underneath the voice without ducking the voice too. */
+  readonly voiceBus: GainNode;
+
   private constructor(private readonly ctx: AudioContext) {
     this.master = ctx.createGain();
     this.master.gain.value = 0;
     this.master.connect(ctx.destination);
+
+    this.voiceBus = ctx.createGain();
+    this.voiceBus.gain.value = 1;
+    this.voiceBus.connect(ctx.destination);
   }
 
   /**
@@ -244,7 +252,13 @@ export class Soundscape {
     this.ramp('filament', era.filament * 0.25, seconds);
   }
 
-  /** Duck everything, for use under a fade to black. */
+  /**
+   * Pull the ambience down, typically under a fade or beneath the voice.
+   *
+   * Only the bed moves -- `voiceBus` is deliberately outside `master`, because
+   * ducking a mix that includes the thing you are ducking *for* achieves
+   * nothing.
+   */
   duck(amount: number, seconds = 0.5): void {
     this.master.gain.cancelScheduledValues(this.ctx.currentTime);
     this.master.gain.setValueAtTime(this.master.gain.value, this.ctx.currentTime);
