@@ -8,6 +8,13 @@ import { CreateSphere } from '@babylonjs/core/Meshes/Builders/sphereBuilder';
 import type { Mesh } from '@babylonjs/core/Meshes/mesh';
 
 /**
+ * Rendering groups. In-world UI draws above the room; the fader draws above
+ * everything, because a fade that anything can show through is not a fade.
+ */
+export const UI_RENDER_GROUP = 2;
+export const FADER_RENDER_GROUP = 3;
+
+/**
  * Fade to black between beats.
  *
  * Has to be geometry, not a DOM overlay: in an immersive session the page is
@@ -37,14 +44,26 @@ export class Fader {
     this.material.backFaceCulling = false;
     this.material.alpha = 0;
 
-    this.mesh = CreateSphere('fader', { diameter: 0.3, segments: 8 }, scene);
+    // Sized generously on purpose. In an immersive session each eye renders
+    // from roughly +/-32mm either side of the rig origin this is parented to,
+    // and the XR camera's near plane sits at 0.1 -- a tight sphere clips into
+    // the near plane at the edges and leaves the fade visibly incomplete in
+    // peripheral vision. 0.6m of radius clears both comfortably while staying
+    // well inside the nearest scene geometry.
+    this.mesh = CreateSphere('fader', { diameter: 1.2, segments: 12 }, scene);
     this.mesh.material = this.material;
     this.mesh.isPickable = false;
     this.mesh.infiniteDistance = false;
-    // Draw after everything else so it covers the scene rather than being
-    // depth-tested against it.
-    this.mesh.renderingGroupId = 3;
+    this.mesh.renderingGroupId = FADER_RENDER_GROUP;
+    // Parented to a camera and always on-screen: skip the culling test that
+    // would otherwise be computed from a bounding box moving every frame.
+    this.mesh.alwaysSelectAsActiveMesh = true;
     this.mesh.setEnabled(false);
+
+    // Clear depth before this group renders. Without it the sphere is
+    // depth-tested against the room and anything nearer than 0.6m punches
+    // straight through the fade -- so the "black" would have furniture in it.
+    scene.setRenderingAutoClearDepthStencil(FADER_RENDER_GROUP, true, true, false);
   }
 
   /** Follow a camera. Called again when the active camera changes for XR. */

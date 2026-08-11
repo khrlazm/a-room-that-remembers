@@ -1,5 +1,5 @@
 {
-  "$comment": "The narrative manifest. Beats are data, not code -- editing the story should not mean editing TypeScript. tools/validate.mjs cross-checks every gate and chapter named here against what the Blender build actually exported, so a typo fails the build instead of dead-ending a viewer mid-piece.",
+  "$comment": "The narrative manifest. Beats are data, not code -- editing the story should not mean editing TypeScript. tools/validate.mjs cross-checks every gate and chapter named here against what the Blender build actually exported, so a typo fails the build instead of dead-ending a viewer mid-piece. Timings mirror content/vo/script.md; once a voiceover take exists, re-time these to the take rather than asking the performance to hit marks.",
 
   "title": "A Room That Remembers",
   "hub": "hub",
@@ -15,11 +15,14 @@
       "id": "arrival",
       "kind": "hub",
       "chapter": "hub",
-      "durationMs": 14000,
+      "durationMs": 50000,
       "lines": [
-        { "atMs": 1500, "text": "He fixed things. That was the whole of it." },
-        { "atMs": 7000, "text": "Everything here came in broken and went out working." },
-        { "atMs": 11500, "text": "Look at something long enough and it will tell you when." }
+        { "atMs": 1000, "text": "Mind the step. There's always been a step." },
+        { "atMs": 9000, "text": "Forty-one years, this room. Forty-one years of other people's broken things." },
+        { "atMs": 18000, "text": "They'd come in under an arm. Wrapped in a tea towel like something that had died." },
+        { "atMs": 26000, "text": "And I'd say — leave it with me. I always said that." },
+        { "atMs": 33000, "text": "I never once said I can't. Not out loud." },
+        { "atMs": 42000, "text": "Look at a thing long enough, and it'll tell you when." }
       ]
     },
     {
@@ -27,12 +30,19 @@
       "kind": "era",
       "gate": "radio",
       "chapter": "era_radio",
-      "durationMs": 22000,
+      "durationMs": 96000,
       "lines": [
-        { "atMs": 1200, "text": "This one took him four evenings." },
-        { "atMs": 6000, "text": "A valve, a cracked solder joint, and a screw he had to make himself." },
-        { "atMs": 12000, "text": "It belonged to a woman two streets over. She paid him in bread." },
-        { "atMs": 17500, "text": "He kept it working for thirty years after she died." }
+        { "atMs": 1000, "text": "Ah. That one. That one was Mrs Ellery's, two streets over." },
+        { "atMs": 8000, "text": "Came in with a crack down the back and a hum you could feel in your teeth." },
+        { "atMs": 17000, "text": "Four evenings, that took me. A valve. A dry joint on the transformer." },
+        { "atMs": 26000, "text": "And a screw I had to cut myself. They'd stopped making that thread. So I made it." },
+        { "atMs": 38000, "text": "She couldn't pay. I knew that when she walked in." },
+        { "atMs": 45000, "text": "She brought bread instead. Every Friday for a year. A loaf on that bench, still warm." },
+        { "atMs": 56000, "text": "She died in the spring of eighty-six." },
+        { "atMs": 64000, "text": "And I kept it working. Thirty years, I kept that radio working." },
+        { "atMs": 74000, "text": "Nobody was listening to it. I knew that. I'm not daft." },
+        { "atMs": 83000, "text": "But it's a small thing, isn't it. To keep something going. After." },
+        { "atMs": 93000, "text": "It's the only kind of mending I was ever any good at." }
       ]
     }
   ]

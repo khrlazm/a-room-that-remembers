@@ -18,8 +18,10 @@ export interface GazeOptions {
   /** How long the viewer must hold their gaze before a gate fires. */
   dwellMs: number;
   /** Fires as soon as the gaze lands, before the dwell completes. */
-  onHoverStart?: (id: string) => void;
+  onHoverStart?: (id: string, mesh: AbstractMesh) => void;
   onHoverEnd?: (id: string) => void;
+  /** Dwell progress, 0..1, every frame the gaze is held. */
+  onProgress?: (id: string, progress: number, mesh: AbstractMesh) => void;
   onComplete?: (id: string) => void;
 }
 
@@ -107,7 +109,7 @@ export class GazeController {
       if (hitId) {
         this.hovered = this.targets.get(hitId) ?? null;
         this.dwellStartedAt = performance.now();
-        if (this.hovered) this.options.onHoverStart?.(this.hovered.id);
+        if (this.hovered) this.options.onHoverStart?.(this.hovered.id, this.hovered.mesh);
       }
     }
 
@@ -115,6 +117,7 @@ export class GazeController {
 
     const progress = Math.min((performance.now() - this.dwellStartedAt) / this.options.dwellMs, 1);
     this.applyHighlight(this.hovered, progress);
+    this.options.onProgress?.(this.hovered.id, progress, this.hovered.mesh);
 
     if (progress >= 1) {
       const { id } = this.hovered;
