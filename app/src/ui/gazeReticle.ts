@@ -8,6 +8,7 @@ import { StandardMaterial } from '@babylonjs/core/Materials/standardMaterial';
 import { CreatePlane } from '@babylonjs/core/Meshes/Builders/planeBuilder';
 
 import { UI_RENDER_GROUP } from '../engine/comfort';
+import { FrameClock } from '../engine/clock';
 
 const CANVAS = 128;
 /** How far in front of the object the ring floats, in metres. */
@@ -35,6 +36,7 @@ export class GazeReticle {
   private lastDrawn = -1;
   private target: AbstractMesh | null = null;
   private visibility = 0;
+  private readonly clock = new FrameClock();
 
   constructor(private readonly scene: Scene) {
     this.texture = new DynamicTexture(
@@ -45,13 +47,17 @@ export class GazeReticle {
     );
     this.texture.hasAlpha = true;
 
+    // Same unlit setup as the captions: emissive carries the colour, the same
+    // canvas carries the alpha, and nothing else contributes.
     this.material = new StandardMaterial('reticle-mat', scene);
-    this.material.diffuseTexture = this.texture;
-    this.material.opacityTexture = this.texture;
     this.material.emissiveTexture = this.texture;
+    this.material.opacityTexture = this.texture;
     this.material.emissiveColor = Color3.White();
+    this.material.diffuseColor = Color3.Black();
+    this.material.specularColor = Color3.Black();
     this.material.disableLighting = true;
     this.material.backFaceCulling = false;
+    this.material.disableDepthWrite = true;
 
     this.mesh = CreatePlane('reticle', { size: 0.16 }, scene);
     this.mesh.material = this.material;
@@ -104,7 +110,7 @@ export class GazeReticle {
 
     // Fade up over a few frames so a glance that skims an object does not
     // flash a ring at the edge of vision.
-    this.visibility = Math.min(this.visibility + this.scene.getEngine().getDeltaTime() / 180, 1);
+    this.visibility = Math.min(this.visibility + this.clock.tick() / 0.18, 1);
     this.material.alpha = this.visibility;
     // Slight scale-in reads as the ring settling onto the object.
     const scale = 0.85 + this.visibility * 0.15;

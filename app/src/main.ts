@@ -179,6 +179,17 @@ async function main(): Promise<void> {
 
   exposeDebugHandle({ stage, story, sequencer, gaze, fader, captions, reticle, perf, xr, audio: () => soundscape });
 
+  // `?subtest=1` pins a caption up immediately, so the panel can be checked and
+  // adjusted while wearing the headset without sitting through a beat first.
+  if (params.has('subtest')) {
+    captions.say('The quick brown fox — if you can read this the right way up, the caption is correct.');
+    console.info(
+      '[subtest] adjust live from the console:\n' +
+        "  __room.captions.setDrop(0.9)   // lower the panel\n" +
+        "  __room.captions.say('text')     // change the line",
+    );
+  }
+
   enterDesktopButton.disabled = false;
   enterDesktopButton.addEventListener('click', () => {
     beginAudio();

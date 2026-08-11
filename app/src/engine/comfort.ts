@@ -7,6 +7,8 @@ import { StandardMaterial } from '@babylonjs/core/Materials/standardMaterial';
 import { CreateSphere } from '@babylonjs/core/Meshes/Builders/sphereBuilder';
 import type { Mesh } from '@babylonjs/core/Meshes/mesh';
 
+import { FrameClock } from './clock';
+
 /**
  * Rendering groups. In-world UI draws above the room; the fader draws above
  * everything, because a fade that anything can show through is not a fade.
@@ -32,6 +34,7 @@ export class Fader {
   private readonly scene: Scene;
   private current = 0;
   private observer: Nullable<Observer<Scene>> = null;
+  private readonly clock = new FrameClock();
 
   constructor(scene: Scene) {
     this.scene = scene;
@@ -96,9 +99,10 @@ export class Fader {
     }
 
     let elapsed = 0;
+    this.clock.reset();
     return new Promise((resolve) => {
       this.observer = this.scene.onBeforeRenderObservable.add(() => {
-        elapsed += this.scene.getEngine().getDeltaTime();
+        elapsed += this.clock.tick() * 1000;
         const t = Math.min(elapsed / durationMs, 1);
         // Smoothstep: a linear fade reads as a mechanical wipe, and the eye
         // notices the abrupt start and stop.
