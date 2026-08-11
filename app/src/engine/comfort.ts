@@ -1,5 +1,7 @@
 import type { Scene } from '@babylonjs/core/scene';
 import type { Camera } from '@babylonjs/core/Cameras/camera';
+import type { Nullable } from '@babylonjs/core/types';
+import type { Observer } from '@babylonjs/core/Misc/observable';
 import { Color3 } from '@babylonjs/core/Maths/math.color';
 import { StandardMaterial } from '@babylonjs/core/Materials/standardMaterial';
 import { CreateSphere } from '@babylonjs/core/Meshes/Builders/sphereBuilder';
@@ -20,10 +22,12 @@ import type { Mesh } from '@babylonjs/core/Meshes/mesh';
 export class Fader {
   private readonly mesh: Mesh;
   private readonly material: StandardMaterial;
+  private readonly scene: Scene;
   private current = 0;
-  private animation: number | null = null;
+  private observer: Nullable<Observer<Scene>> = null;
 
   constructor(scene: Scene) {
+    this.scene = scene;
     this.material = new StandardMaterial('fader-mat', scene);
     this.material.diffuseColor = Color3.Black();
     this.material.emissiveColor = Color3.Black();
@@ -53,12 +57,17 @@ export class Fader {
     return this.current;
   }
 
-  /** Animate opacity to `target` over `durationMs`. Resolves when it lands. */
+  /**
+   * Animate opacity to `target` over `durationMs`. Resolves when it lands.
+   *
+   * Driven by the scene's render loop rather than `requestAnimationFrame`.
+   * Inside an immersive session Babylon renders from the XR device's frame
+   * callback, not from `rAF` -- so an rAF-based fade freezes in VR, which is
+   * the one place a fade actually has a job to do. Accumulating engine delta
+   * time also keeps the fade honest if the frame rate drops.
+   */
   to(target: number, durationMs: number): Promise<void> {
-    if (this.animation !== null) {
-      cancelAnimationFrame(this.animation);
-      this.animation = null;
-    }
+    this.cancel();
 
     const from = this.current;
     const delta = target - from;
@@ -67,22 +76,27 @@ export class Fader {
       return Promise.resolve();
     }
 
-    const started = performance.now();
+    let elapsed = 0;
     return new Promise((resolve) => {
-      const step = () => {
-        const t = Math.min((performance.now() - started) / durationMs, 1);
+      this.observer = this.scene.onBeforeRenderObservable.add(() => {
+        elapsed += this.scene.getEngine().getDeltaTime();
+        const t = Math.min(elapsed / durationMs, 1);
         // Smoothstep: a linear fade reads as a mechanical wipe, and the eye
         // notices the abrupt start and stop.
         this.set(from + delta * (t * t * (3 - 2 * t)));
-        if (t < 1) {
-          this.animation = requestAnimationFrame(step);
-        } else {
-          this.animation = null;
+        if (t >= 1) {
+          this.cancel();
           resolve();
         }
-      };
-      this.animation = requestAnimationFrame(step);
+      });
     });
+  }
+
+  private cancel(): void {
+    if (this.observer) {
+      this.scene.onBeforeRenderObservable.remove(this.observer);
+      this.observer = null;
+    }
   }
 
   /** Fade out, run `during`, fade back in. The workhorse for beat changes. */
@@ -99,7 +113,7 @@ export class Fader {
   }
 
   dispose(): void {
-    if (this.animation !== null) cancelAnimationFrame(this.animation);
+    this.cancel();
     this.mesh.dispose();
     this.material.dispose();
   }

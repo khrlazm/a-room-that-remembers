@@ -1,8 +1,10 @@
 import { createStage, EYE_HEIGHT } from './engine/bootstrap';
 import { Fader } from './engine/comfort';
 import { setupXR } from './engine/xr';
-import { anchorPosition, loadChapter } from './assets/chapters';
+import { anchorPosition } from './assets/chapters';
 import { GazeController } from './story/gaze';
+import { Sequencer } from './story/sequencer';
+import { loadStory } from './story/types';
 import { exposeDebugHandle, PerfMonitor } from './dev/debug';
 import { Vector3 } from '@babylonjs/core/Maths/math.vector';
 
@@ -19,10 +21,6 @@ function setStatus(message: string): void {
   statusLine.textContent = message;
 }
 
-function say(message: string): void {
-  subtitles.textContent = message;
-}
-
 function dismissGate(): void {
   gate.classList.add('fading');
   window.setTimeout(() => gate.setAttribute('hidden', ''), 650);
@@ -35,41 +33,50 @@ async function main(): Promise<void> {
   fader.attach(stage.previewCamera);
 
   setStatus('Loading the room…');
-  const hub = await loadChapter(stage.scene, 'hub');
-  hub.addToScene();
+  const story = await loadStory(import.meta.env.BASE_URL);
 
-  // The viewer's vantage and heading are authored in Blender, not here. Hand
-  // written coordinates would have to replicate the Z-up to Y-up conversion,
+  let gaze: GazeController;
+
+  const sequencer = new Sequencer(story, {
+    scene: stage.scene,
+    fader,
+    onLine: (text) => {
+      subtitles.textContent = text;
+    },
+    // Nothing is gaze-triggerable while a beat plays: the viewer is watching,
+    // not choosing, and a stray glance should not stack another era on top.
+    onBeatStart: () => gaze.setArmed(false),
+    onBeatEnd: () => gaze.setArmed(true),
+  });
+
+  const hub = await sequencer.start();
+
+  // The vantage and heading come from anchors authored in Blender. Writing
+  // them here would mean replicating the Z-up to Y-up conversion by hand,
   // which is a reliable source of sign errors.
   const vantage = anchorPosition(hub, 'viewer');
   const focus = anchorPosition(hub, 'focus');
   if (vantage) stage.previewCamera.position = vantage.add(new Vector3(0, EYE_HEIGHT, 0));
   if (focus) stage.previewCamera.setTarget(focus);
 
-  console.info(
-    `[hub] ${hub.container.meshes.length} meshes, ` +
-      `${hub.anchors.size} anchors, ${hub.gates.size} gates ` +
-      `(${[...hub.gates.keys()].join(', ') || 'none'})`,
-  );
-
-  const gaze = new GazeController(stage.scene, {
-    dwellMs: 1600,
-    onHoverStart: (id) => {
-      console.info(`[gaze] looking at ${id}`);
-      // Where chapter prefetch will start, so the fetch overlaps the dwell.
-    },
-    onComplete: async (id) => {
-      console.info(`[gaze] ${id} triggered`);
-      say('');
-      await fader.through(async () => {
-        // Era chapters land here: swap the room, play the beat, come back.
-        await new Promise((resolve) => setTimeout(resolve, 400));
+  gaze = new GazeController(stage.scene, {
+    dwellMs: story.settings.dwellMs,
+    // Hover fires long before the dwell fills, so the fetch hides inside the
+    // interaction rather than showing up as a pause after it.
+    onHoverStart: (id) => sequencer.prefetch(id),
+    onComplete: (id) => {
+      void sequencer.enter(id).catch((error: unknown) => {
+        console.error(`[story] entering ${id} failed`, error);
+        gaze.setArmed(true);
       });
-      say(`— ${id} —`);
-      gaze.setArmed(true);
     },
   });
   gaze.register(hub.gates.values());
+
+  console.info(
+    `[story] "${story.title}" — ${story.beats.length} beats, ` +
+      `gates: ${[...hub.gates.keys()].join(', ') || 'none'}`,
+  );
 
   const perf = new PerfMonitor(stage.scene, stage.engine, {
     overlay: params.has('hud'),
@@ -79,7 +86,6 @@ async function main(): Promise<void> {
   const xr = await setupXR(stage.scene, {
     vantageFrom: stage.previewCamera,
     onEnter: () => {
-      // The fader lives on the camera, and XR swaps in its own.
       const xrCamera = xr?.experience.baseExperience.camera;
       if (xrCamera) fader.attach(xrCamera);
       dismissGate();
@@ -87,13 +93,12 @@ async function main(): Promise<void> {
     onExit: () => fader.attach(stage.previewCamera),
   });
 
-  exposeDebugHandle({ stage, hub, gaze, fader, perf, xr });
+  exposeDebugHandle({ stage, story, sequencer, gaze, fader, perf, xr });
 
   enterDesktopButton.disabled = false;
   enterDesktopButton.addEventListener('click', () => {
     stage.previewCamera.attachControl(true);
     dismissGate();
-    say('Look at the radio.');
   });
 
   if (xr) {

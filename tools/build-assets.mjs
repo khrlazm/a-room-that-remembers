@@ -21,13 +21,15 @@ import { ALL_EXTENSIONS } from '@gltf-transform/extensions';
 import { textureCompress } from '@gltf-transform/functions';
 import sharp from 'sharp';
 
-import { existsSync, mkdirSync, readdirSync, statSync } from 'node:fs';
+import { copyFileSync, existsSync, mkdirSync, readdirSync, statSync } from 'node:fs';
 import { basename, dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const RAW_DIR = join(ROOT, 'build', 'raw');
 const OUT_DIR = join(ROOT, 'app', 'public', 'assets', 'chapters');
+const STORY_SRC = join(ROOT, 'content', 'story.json');
+const STORY_OUT = join(ROOT, 'app', 'public', 'story.json');
 
 const WEBP_QUALITY = 90;
 
@@ -67,6 +69,15 @@ async function main() {
 
     const saved = ((1 - after / before) * 100).toFixed(0);
     console.log(`${name}: ${kb(before)} → ${kb(after)}  (-${saved}%)`);
+  }
+
+  // The story manifest is fetched at runtime rather than bundled, so it stays
+  // data: retiming a line or cutting a spoke does not mean rebuilding the app.
+  if (existsSync(STORY_SRC)) {
+    copyFileSync(STORY_SRC, STORY_OUT);
+    console.log(`story.json: copied to app/public/`);
+  } else {
+    console.warn(`warning: ${STORY_SRC} not found -- the runtime will have no beats`);
   }
 
   console.log(

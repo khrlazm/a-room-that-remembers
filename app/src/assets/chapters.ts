@@ -25,6 +25,8 @@ export interface Chapter {
   /** Gaze targets, keyed by the `gateId` extra. */
   gates: Map<string, Gate>;
   addToScene(): void;
+  /** Toggle visibility without unloading. Used to swap the hub for an era. */
+  setVisible(visible: boolean): void;
   dispose(): void;
 }
 
@@ -77,6 +79,12 @@ export async function loadChapter(scene: Scene, id: string): Promise<Chapter> {
       if (added) return;
       container.addAllToScene();
       added = true;
+    },
+    setVisible(visible: boolean) {
+      // Toggling enabled rather than adding and removing from the scene: the
+      // hub is resident for the whole piece and re-adding a container re-runs
+      // scene registration for no benefit. A disabled mesh costs nothing.
+      for (const node of container.rootNodes) node.setEnabled(visible);
     },
     dispose() {
       if (added) container.removeAllFromScene();

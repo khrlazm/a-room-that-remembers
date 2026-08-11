@@ -1,0 +1,39 @@
+{
+  "$comment": "The narrative manifest. Beats are data, not code -- editing the story should not mean editing TypeScript. tools/validate.mjs cross-checks every gate and chapter named here against what the Blender build actually exported, so a typo fails the build instead of dead-ending a viewer mid-piece.",
+
+  "title": "A Room That Remembers",
+  "hub": "hub",
+
+  "settings": {
+    "dwellMs": 1600,
+    "fadeOutMs": 700,
+    "fadeInMs": 900
+  },
+
+  "beats": [
+    {
+      "id": "arrival",
+      "kind": "hub",
+      "chapter": "hub",
+      "durationMs": 14000,
+      "lines": [
+        { "atMs": 1500, "text": "He fixed things. That was the whole of it." },
+        { "atMs": 7000, "text": "Everything here came in broken and went out working." },
+        { "atMs": 11500, "text": "Look at something long enough and it will tell you when." }
+      ]
+    },
+    {
+      "id": "radio",
+      "kind": "era",
+      "gate": "radio",
+      "chapter": "era_radio",
+      "durationMs": 22000,
+      "lines": [
+        { "atMs": 1200, "text": "This one took him four evenings." },
+        { "atMs": 6000, "text": "A valve, a cracked solder joint, and a screw he had to make himself." },
+        { "atMs": 12000, "text": "It belonged to a woman two streets over. She paid him in bread." },
+        { "atMs": 17500, "text": "He kept it working for thirty years after she died." }
+      ]
+    }
+  ]
+}
