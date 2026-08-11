@@ -55,8 +55,16 @@ export async function loadChapter(scene: Scene, id: string): Promise<Chapter> {
 
   const gates = new Map<string, Gate>();
   for (const mesh of container.meshes) {
+    // Nothing is pickable unless it is a gate. The merged static mesh is the
+    // entire room in one object, so leaving it pickable would make every gaze
+    // ray test the whole room's geometry, every frame, for nothing.
+    mesh.isPickable = false;
+
     const gateId = extraString(mesh, EXTRA_GATE_ID);
-    if (gateId) gates.set(gateId, { id: gateId, mesh });
+    if (gateId) {
+      mesh.isPickable = true;
+      gates.set(gateId, { id: gateId, mesh });
+    }
   }
 
   let added = false;
