@@ -1,0 +1,11 @@
+# Normalise line endings so the repo is identical on Windows and on CI runners.
+* text=auto eol=lf
+
+# Binary assets: never touch these.
+*.glb binary
+*.png binary
+*.webp binary
+*.blend binary
+*.wasm binary
+*.mp3 binary
+*.ogg binary

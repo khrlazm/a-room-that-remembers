@@ -1,0 +1,36 @@
+{
+  "name": "a-room-that-remembers",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "A 10-15 minute WebXR narrative experience. Blender (procedural bpy authoring) -> glTF/KTX2 -> Babylon.js.",
+  "engines": {
+    "node": ">=24.0.0"
+  },
+  "scripts": {
+    "dev": "vite",
+    "dev:quest": "node tools/dev-quest.mjs",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "build:blender": "node tools/build-blender.mjs",
+    "build:assets": "node tools/build-assets.mjs",
+    "build:content": "npm run build:blender && npm run build:assets && npm run validate",
+    "validate": "node tools/validate.mjs"
+  },
+  "dependencies": {
+    "@babylonjs/core": "^9.20.0",
+    "@babylonjs/loaders": "^9.20.0"
+  },
+  "devDependencies": {
+    "@gltf-transform/cli": "^4.4.2",
+    "@gltf-transform/core": "^4.4.2",
+    "@gltf-transform/extensions": "^4.4.2",
+    "@gltf-transform/functions": "^4.4.2",
+    "sharp": "^0.35.3",
+    "typescript": "^7.0.2",
+    "vite": "^8.2.1"
+  },
+  "overrides": {
+    "sharp": "^0.35.3"
+  }
+}

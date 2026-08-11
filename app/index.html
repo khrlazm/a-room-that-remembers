@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>A Room That Remembers</title>
+    <meta name="description" content="A short narrative experience in virtual reality." />
+    <meta name="theme-color" content="#0b0a09" />
+    <style>
+      :root {
+        --ink: #f2ece1;
+        --ink-dim: #a09689;
+        --bg: #0b0a09;
+        --warm: #d9a441;
+      }
+      * { box-sizing: border-box; }
+      html, body {
+        margin: 0;
+        height: 100%;
+        overflow: hidden;
+        background: var(--bg);
+        color: var(--ink);
+        font: 16px/1.55 ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+        -webkit-font-smoothing: antialiased;
+      }
+      #render-canvas {
+        position: fixed;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        display: block;
+        outline: none;
+        touch-action: none;
+      }
+
+      /* Landing overlay. WebXR requires a user gesture to enter immersive mode,
+         so this button is not decorative -- it is the only legal entry point. */
+      #gate {
+        position: fixed;
+        inset: 0;
+        display: grid;
+        place-content: center;
+        justify-items: center;
+        gap: 1.5rem;
+        padding: 2rem;
+        text-align: center;
+        background: radial-gradient(ellipse at 50% 40%, #17140f 0%, var(--bg) 70%);
+        transition: opacity 600ms ease;
+        z-index: 10;
+      }
+      #gate[hidden] { display: none; }
+      #gate.fading { opacity: 0; pointer-events: none; }
+
+      h1 {
+        margin: 0;
+        font-size: clamp(1.75rem, 5vw, 3rem);
+        font-weight: 500;
+        letter-spacing: 0.01em;
+      }
+      .sub { margin: 0; max-width: 34ch; color: var(--ink-dim); }
+
+      button {
+        font: inherit;
+        font-size: 1.05rem;
+        padding: 0.85rem 2.25rem;
+        border-radius: 999px;
+        border: 1px solid var(--warm);
+        background: transparent;
+        color: var(--warm);
+        cursor: pointer;
+        transition: background 180ms ease, color 180ms ease;
+      }
+      button:hover:not(:disabled),
+      button:focus-visible { background: var(--warm); color: #17140f; }
+      button:disabled { opacity: 0.4; cursor: default; }
+
+      .row { display: flex; gap: 0.75rem; flex-wrap: wrap; justify-content: center; }
+      .note { font-size: 0.85rem; color: var(--ink-dim); max-width: 40ch; }
+      #status { font-size: 0.85rem; color: var(--ink-dim); min-height: 1.5em; }
+
+      /* Subtitles. Positioned as a DOM overlay for the desktop preview only;
+         in VR they are rendered in-scene so they track the viewer's head. */
+      #subtitles {
+        position: fixed;
+        left: 50%;
+        bottom: 8vh;
+        transform: translateX(-50%);
+        max-width: min(46ch, 90vw);
+        text-align: center;
+        font-size: clamp(1rem, 2.2vw, 1.35rem);
+        text-shadow: 0 2px 12px rgba(0, 0, 0, 0.9);
+        pointer-events: none;
+        z-index: 5;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="render-canvas"></canvas>
+    <div id="subtitles" aria-live="polite"></div>
+
+    <div id="gate">
+      <h1>A Room That Remembers</h1>
+      <p class="sub">Twelve minutes. Stay where you are and let it come to you.</p>
+      <div class="row">
+        <button id="enter-vr" disabled>Enter VR</button>
+        <button id="enter-desktop" disabled>Preview on desktop</button>
+      </div>
+      <p id="status">Loading&hellip;</p>
+      <p class="note">Best with headphones. You will not need to walk.</p>
+    </div>
+
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

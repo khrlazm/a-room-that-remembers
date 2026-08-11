@@ -1,0 +1,22 @@
+node_modules/
+dist/
+.vite/
+*.local
+.env
+.DS_Store
+
+# Blender working files
+*.blend1
+*.blend2
+
+# Blender runs the authoring scripts with its own bundled Python, which leaves
+# bytecode caches next to the sources.
+__pycache__/
+*.pyc
+
+# Raw uncompressed Blender exports. These are intermediates: the *compressed*
+# output in app/public/assets/ is what gets committed and deployed.
+build/
+
+# Bake cache (keyed by content hash, safe to regenerate)
+.cache/
