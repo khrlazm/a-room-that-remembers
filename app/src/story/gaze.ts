@@ -14,6 +14,9 @@ import type { Observer } from '@babylonjs/core/Misc/observable';
 
 import type { Gate } from '../assets/chapters';
 
+/** How far a gate's albedo falls at full dwell. 1 would be no change at all. */
+const HIGHLIGHT_DEPTH = 0.72;
+
 export interface GazeOptions {
   /** How long the viewer must hold their gaze before a gate fires. */
   dwellMs: number;
@@ -133,7 +136,13 @@ export class GazeController {
     if (!target.material) return;
     // Ease in, so a glance that passes across an object barely registers but a
     // deliberate look builds visibly.
-    const amount = 1 + progress * progress * 1.6;
+    //
+    // This used to brighten to 2.6x, which blew out against the window and made
+    // the gate look lit from nowhere. The reticle now carries the progress, so
+    // the object only has to acknowledge the gaze -- and in a dim room a slight
+    // deepening reads as attention settling on something far better than a
+    // glare does.
+    const amount = 1 - progress * progress * (1 - HIGHLIGHT_DEPTH);
     target.material.albedoColor.copyFrom(target.baseColor).scaleInPlace(amount);
   }
 

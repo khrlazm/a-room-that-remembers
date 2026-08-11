@@ -1,3 +1,11 @@
+// Side-effect imports. XR features register themselves with the features
+// manager on load; asking for one that has not been imported fails the whole
+// session with "feature not found - xr-near-interaction" and no XR at all.
+// These must be imported here, where the session is created, rather than in the
+// lazily-loaded grab module that uses them -- by then the session is long gone.
+import '@babylonjs/core/XR/features/WebXRNearInteraction';
+import '@babylonjs/core/XR/features/WebXRHandTracking';
+
 import type { Scene } from '@babylonjs/core/scene';
 import type { FreeCamera } from '@babylonjs/core/Cameras/freeCamera';
 import { WebXRDefaultExperience } from '@babylonjs/core/XR/webXRDefaultExperience';
@@ -31,15 +39,25 @@ export async function setupXR(scene: Scene, options: XrOptions): Promise<XrSessi
     // We drive entry from our own landing page button, which is also the user
     // gesture WebXR requires.
     disableDefaultUI: true,
+    // The viewer never moves, so there is nothing to teleport to, and the only
+    // verbs are looking and -- in the codas -- reaching. A laser pointer would
+    // be interface in a piece that is trying to be a room.
     disableTeleportation: true,
-    disableNearInteraction: true,
     disablePointerSelection: true,
-    disableHandTracking: true,
+    // Hands are the designed input for the codas: reaching out and closing your
+    // fingers on something is the whole gesture, in a piece about a man who
+    // worked with his. Controllers still work as a fallback for viewers who
+    // have hand tracking switched off.
+    disableHandTracking: false,
+    disableNearInteraction: false,
     // 'local-floor' puts the origin on the physical floor, so the authored
     // eye height in Blender lines up with the viewer's real standing height
     // rather than being guessed.
     uiOptions: { sessionMode: 'immersive-vr', referenceSpaceType: 'local-floor' },
-    optionalFeatures: false,
+    // Requested explicitly rather than with `true`, which asks for everything
+    // Babylon knows about. A session that fails because an unrelated optional
+    // feature was refused would be a miserable thing to diagnose on a headset.
+    optionalFeatures: ['hand-tracking'],
   };
 
   let experience: WebXRDefaultExperience;

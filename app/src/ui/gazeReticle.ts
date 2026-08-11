@@ -17,6 +17,26 @@ const STANDOFF = 0.26;
 const REDRAW_STEP = 0.02;
 
 /**
+ * Palette. Dark, because the room is dark.
+ *
+ * The first version drew a pale cream track with a bright amber fill, which
+ * bloomed against the window and read as interface laid over the room rather
+ * than as something in it. Inverting it costs one problem though: a dark ring
+ * disappears into the room's dark corners as readily as a light one blew out
+ * against the glass. So the ring is dark with a faint light rim -- the rim
+ * carries it against shadow, the dark body carries it against the window, and
+ * neither ever glows.
+ */
+const RETICLE = {
+  /** Hairline outside the track, for separation against dark corners. */
+  rim: 'rgba(238, 232, 222, 0.13)',
+  /** The unfilled ring. */
+  track: 'rgba(6, 5, 4, 0.55)',
+  /** The dwell fill. Warm but muted -- legible, never a light source. */
+  progress: 'rgba(196, 146, 82, 0.92)',
+};
+
+/**
  * The dwell indicator.
  *
  * Deliberately *contextual* rather than a fixed centre-screen crosshair: it
@@ -132,10 +152,18 @@ export class GazeReticle {
     ctx.clearRect(0, 0, CANVAS, CANVAS);
     ctx.lineCap = 'round';
 
+    // Faint rim just outside the track. Without it the dark ring vanishes
+    // into the room's unlit corners.
+    ctx.beginPath();
+    ctx.arc(c, c, radius + 3.5, 0, Math.PI * 2);
+    ctx.strokeStyle = RETICLE.rim;
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+
     // Track: says "this is lookable" the moment the gaze lands.
     ctx.beginPath();
     ctx.arc(c, c, radius, 0, Math.PI * 2);
-    ctx.strokeStyle = 'rgba(242, 236, 225, 0.22)';
+    ctx.strokeStyle = RETICLE.track;
     ctx.lineWidth = 5;
     ctx.stroke();
 
@@ -143,7 +171,7 @@ export class GazeReticle {
       // Fill clockwise from twelve o'clock, which reads as time passing.
       ctx.beginPath();
       ctx.arc(c, c, radius, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * progress);
-      ctx.strokeStyle = '#e8c07a';
+      ctx.strokeStyle = RETICLE.progress;
       ctx.lineWidth = 7;
       ctx.stroke();
     }

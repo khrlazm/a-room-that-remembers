@@ -195,6 +195,26 @@ async function main(): Promise<void> {
     },
   });
 
+  // `?physics=1` is the Phase A proving ground: real room, real vantage, real
+  // lighting, a handful of catchable boxes. Loads Havok on demand, so its
+  // absence from every other path is itself part of what this verifies.
+  if (params.has('physics')) {
+    const { startPhysicsHarness } = await import('./dev/physicsHarness');
+    const anchor = vantage ?? Vector3.Zero();
+    void startPhysicsHarness(stage.scene, anchor, xr)
+      .then((harness) => {
+        perf.watchPhysics({
+          activeCount: () => harness.world.activeCount(),
+          holdingCount: () => harness.grab.holdingCount,
+        });
+        (window as unknown as Record<string, unknown>).__harness = harness;
+      })
+      .catch((error: unknown) => {
+        console.error('[harness] physics failed to start', error);
+        setStatus(`Physics failed: ${error instanceof Error ? error.message : String(error)}`);
+      });
+  }
+
   exposeDebugHandle({ stage, story, sequencer, gaze, fader, captions, reticle, perf, xr, audio: () => soundscape });
 
   // `?subtest=1` pins a caption up immediately, so the panel can be checked and

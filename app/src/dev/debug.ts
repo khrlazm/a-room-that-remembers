@@ -10,6 +10,15 @@ export interface Stats {
   totalVertices: number;
   materials: number;
   textures: number;
+  /** Awake physics bodies, and how many are currently held. Absent outside codas. */
+  bodies?: number;
+  held?: number;
+}
+
+/** Supplied by the coda so physics cost shows up in the headset console. */
+export interface PhysicsProbe {
+  activeCount(): number;
+  holdingCount(): number;
 }
 
 /**
@@ -25,6 +34,7 @@ export class PerfMonitor {
   private readonly instrumentation: SceneInstrumentation;
   private element: HTMLDivElement | null = null;
   private lastLog = 0;
+  private physics: PhysicsProbe | null = null;
 
   constructor(
     private readonly scene: Scene,
@@ -51,6 +61,11 @@ export class PerfMonitor {
     });
   }
 
+  /** Attach or clear the physics readout when a coda starts and ends. */
+  watchPhysics(probe: PhysicsProbe | null): void {
+    this.physics = probe;
+  }
+
   read(): Stats {
     return {
       fps: Math.round(this.engine.getFps()),
@@ -60,6 +75,8 @@ export class PerfMonitor {
       totalVertices: this.scene.getTotalVertices(),
       materials: this.scene.materials.length,
       textures: this.scene.textures.length,
+      bodies: this.physics?.activeCount(),
+      held: this.physics?.holdingCount(),
     };
   }
 
@@ -70,10 +87,13 @@ export class PerfMonitor {
 }
 
 function format(stats: Stats): string {
+  const physics =
+    stats.bodies === undefined ? '' : `\n${stats.bodies} bodies  ${stats.held ?? 0} held`;
   return (
     `${stats.fps} fps  ${stats.frameMs}ms\n` +
     `${stats.drawCalls} draws  ${stats.activeMeshes} meshes\n` +
-    `${stats.totalVertices} verts  ${stats.materials} mat  ${stats.textures} tex`
+    `${stats.totalVertices} verts  ${stats.materials} mat  ${stats.textures} tex` +
+    physics
   );
 }
 
