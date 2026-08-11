@@ -36,13 +36,21 @@ export class VoicePlayer {
   /**
    * Play a take and resolve when it finishes.
    *
+   * Reports no progress of its own. An earlier version polled `currentTime`
+   * from a `requestAnimationFrame` loop, which is dead code inside an immersive
+   * session: the browser suspends `window.requestAnimationFrame` and hands
+   * frames to `XRSession.requestAnimationFrame` instead. The audio played
+   * normally and the subtitle never advanced past its first line. Callers read
+   * `position` from the scene's render loop instead, which Babylon drives from
+   * whichever frame source is actually live.
+   *
    * The voice is deliberately *not* spatialised. He is not standing in the
    * corner of the room -- he is the room's memory of itself, and a positioned
    * voice would invite the viewer to turn and look for a body that is not
    * there. Everything else in the mix is panned; this is the one thing that
    * should follow you.
    */
-  async play(url: string, onProgress?: (seconds: number) => void): Promise<void> {
+  async play(url: string): Promise<void> {
     this.stop();
 
     const { element } = this.acquire(url);
@@ -52,40 +60,26 @@ export class VoicePlayer {
     await this.ctx.resume().catch(() => undefined);
 
     return new Promise<void>((resolve, reject) => {
-      let frame = 0;
-
-      const tick = () => {
-        if (this.element !== element) return; // superseded by another take
-        onProgress?.(element.currentTime);
-        frame = requestAnimationFrame(tick);
-      };
-
-      const finish = () => {
-        cancelAnimationFrame(frame);
+      const detach = () => {
         element.removeEventListener('ended', finish);
         element.removeEventListener('error', fail);
+      };
+      const finish = () => {
+        detach();
         resolve();
       };
-
       const fail = () => {
-        cancelAnimationFrame(frame);
-        element.removeEventListener('ended', finish);
-        element.removeEventListener('error', fail);
+        detach();
         reject(new Error(`voiceover failed to play: ${url}`));
       };
 
       element.addEventListener('ended', finish);
       element.addEventListener('error', fail);
 
-      element.play().then(
-        () => {
-          frame = requestAnimationFrame(tick);
-        },
-        (error: unknown) => {
-          cancelAnimationFrame(frame);
-          reject(error instanceof Error ? error : new Error(String(error)));
-        },
-      );
+      element.play().then(undefined, (error: unknown) => {
+        detach();
+        reject(error instanceof Error ? error : new Error(String(error)));
+      });
     });
   }
 

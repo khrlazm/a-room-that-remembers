@@ -153,27 +153,38 @@ export class Sequencer {
       const url = `${this.deps.voiceBase ?? '/'}vo/${beat.voice}`;
       let shown = -1;
 
+      // Poll playback from the scene's render loop. Babylon drives that from
+      // whichever frame source is live -- window.requestAnimationFrame on a
+      // flat screen, the XR device's frame callback inside a session -- so
+      // captions keep advancing in the headset. Polling rAF directly does not:
+      // it is suspended for the duration of an immersive session, and the
+      // symptom is a take that plays through while the caption sticks on its
+      // first line.
+      const observer = this.deps.scene.onBeforeRenderObservable.add(() => {
+        const ms = player.position * 1000;
+        let index = -1;
+        for (let i = 0; i < beat.lines.length; i += 1) {
+          if (beat.lines[i].atMs <= ms) index = i;
+          else break;
+        }
+        if (index !== shown) {
+          shown = index;
+          this.deps.onLine(index >= 0 ? beat.lines[index].text : '');
+        }
+      });
+
       this.deps.onVoice?.(true);
       try {
-        await player.play(url, (seconds) => {
-          const ms = seconds * 1000;
-          // Latest line whose cue has passed.
-          let index = -1;
-          for (let i = 0; i < beat.lines.length; i += 1) {
-            if (beat.lines[i].atMs <= ms) index = i;
-            else break;
-          }
-          if (index !== shown) {
-            shown = index;
-            this.deps.onLine(index >= 0 ? beat.lines[index].text : '');
-          }
-        });
+        await player.play(url);
       } catch (error) {
         console.warn(`[story] voiceover for "${beat.id}" failed, falling back to timers`, error);
+        this.deps.scene.onBeforeRenderObservable.remove(observer);
         await this.timedLines(beat);
-      } finally {
         this.deps.onVoice?.(false);
+        return;
       }
+      this.deps.scene.onBeforeRenderObservable.remove(observer);
+      this.deps.onVoice?.(false);
       return;
     }
 
