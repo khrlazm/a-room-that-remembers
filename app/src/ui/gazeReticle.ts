@@ -17,20 +17,18 @@ const STANDOFF = 0.26;
 const REDRAW_STEP = 0.02;
 
 /**
- * Palette: a grey ring that fills with dark grey.
+ * Palette: dark. Both strokes.
  *
- * Neutral, after a pale version blew out against the window and a near-black
- * one vanished into the unlit corners. Mid greys survive both, and the two
- * tones cover each other's weakness: the lighter track carries the shape
- * against shadow, the darker fill reads against the glass. No warm tint and no
- * halo -- both were reaching for attention the piece does not want to give a
- * piece of interface.
+ * A dark grey ring that fills with near-black. Nothing pale, nothing warm,
+ * nothing that glows -- earlier versions kept reaching for attention with light
+ * tones and a halo, and every one of them read as interface pasted over the
+ * room rather than as something in it.
  */
 const RETICLE = {
   /** The unfilled ring. */
-  track: 'rgba(148, 146, 142, 0.6)',
+  track: 'rgba(48, 46, 44, 0.72)',
   /** The dwell fill. */
-  progress: 'rgba(46, 45, 43, 0.95)',
+  progress: 'rgba(8, 8, 8, 0.97)',
 };
 
 /**

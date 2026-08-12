@@ -77,9 +77,10 @@ export async function setupXR(scene: Scene, options: XrOptions): Promise<XrSessi
       },
       jointMeshes: {
         sourceMesh: makeJointMesh(scene),
-        // Slightly smaller than the tracked joint, so the fingertips read as
-        // points rather than the mittens the default spheres suggest.
-        scaleFactor: 0.7,
+        // Instances are scaled by each joint's tracked radius; this multiplies
+        // that. 1 is life-size, which is what you want for something standing
+        // in for your own fingers.
+        scaleFactor: 1,
       },
     },
   };
@@ -142,11 +143,18 @@ function makeJointMesh(scene: Scene): Mesh {
   const material = new StandardMaterial('joint-mat', scene);
   material.diffuseColor = Color3.Black();
   material.specularColor = Color3.Black();
-  material.emissiveColor = new Color3(0.36, 0.33, 0.3);
+  material.emissiveColor = new Color3(0.62, 0.58, 0.53);
   material.disableLighting = true;
-  material.alpha = 0.65;
+  // Opaque. Transparency on hardware instances is unreliable and there is no
+  // reason to pay for it on twenty-five beads per hand.
 
-  const mesh = CreateSphere('joint-source', { diameter: 0.012, segments: 5 }, scene);
+  // **Diameter one metre, deliberately.** Babylon's docs for `sourceMesh` say
+  // it "should have the general size of a single unit, as the instances will be
+  // scaled according to the provided radius" -- each joint instance is scaled
+  // down by that joint's tracked radius, roughly a centimetre. An earlier
+  // 12mm source therefore produced beads about a tenth of a millimetre across:
+  // rendering correctly, and far too small to see.
+  const mesh = CreateSphere('joint-source', { diameter: 1, segments: 6 }, scene);
   mesh.material = material;
   mesh.isPickable = false;
   // Hidden via isVisible, never setEnabled. Babylon builds each joint with
