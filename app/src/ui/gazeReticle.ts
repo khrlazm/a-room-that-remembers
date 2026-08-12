@@ -26,14 +26,14 @@ const REDRAW_STEP = 0.02;
  * and the element still reads as dark, because the disc is what you mostly see.
  */
 const RETICLE = {
-  /** The backing disc. Near-opaque, so the room behind it stops mattering. */
-  panel: 'rgba(0, 0, 0, 0.93)',
-  /** A soft edge on the disc so it does not read as a cut-out hole. */
-  panelEdge: 'rgba(150, 144, 134, 0.22)',
-  /** The unfilled ring, legible against the disc. */
-  track: 'rgba(122, 117, 110, 0.85)',
-  /** The dwell fill. */
-  progress: 'rgba(236, 231, 222, 0.98)',
+  /** Deep obsidian backing disc. */
+  panel: 'rgba(10, 14, 23, 0.94)',
+  /** Subtle neon glow on the border. */
+  panelEdge: 'rgba(56, 189, 248, 0.25)',
+  /** Muted slate track background. */
+  track: 'rgba(51, 65, 85, 0.70)',
+  /** Vibrant cyan/sky-blue fill for high visibility. */
+  progress: 'rgba(56, 189, 248, 0.98)',
 };
 
 /**
