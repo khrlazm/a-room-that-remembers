@@ -73,6 +73,25 @@
         { "atMs": 47200, "text": "He cried when he collected it. Grown man, stood in that doorway." },
         { "atMs": 52700, "text": "I put the kettle on and looked out the window till he'd finished." }
       ]
+    },
+    {
+      "id": "spectacles",
+      "kind": "era",
+      "gate": "spectacles",
+      "chapter": "era_spectacles",
+      "coda": "coda_spectacles",
+      "codaMs": 24000,
+      "voice": "spectacles.mp3",
+      "$voiceNote": "Take is 27.17s against 50s scripted. The gap between the two identical lines is deliberate and long -- do not close it up when re-timing by ear.",
+      "durationMs": 28700,
+      "lines": [
+        { "atMs": 600, "text": "Her glasses." },
+        { "atMs": 3200, "text": "Arm's bent. She sat on them. She was forever sitting on them." },
+        { "atMs": 8000, "text": "Four minutes, that is. Little screwdriver. Warm the arm, ease it back. Four minutes and it's right." },
+        { "atMs": 14500, "text": "I could mend these." },
+        { "atMs": 19000, "text": "I could mend these." },
+        { "atMs": 23000, "text": "They've been on this bench eleven years and I've not touched them." }
+      ]
     }
   ]
 }

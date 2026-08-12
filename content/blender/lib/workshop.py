@@ -15,7 +15,7 @@ from dataclasses import dataclass, field
 import bpy
 
 from .blendutil import new_empty, set_extras
-from .geometry import add_box, add_plane, add_room_shell
+from .geometry import add_box, add_plane, add_prop, add_room_shell
 from .materials import assign, emission_material, flat_material
 from .naming import VIEWER_ANCHOR, anchor_name, gate_name
 
@@ -282,6 +282,47 @@ def add_clock(
     return body, dial
 
 
+def add_spectacles(
+    prefix: str,
+    collection: bpy.types.Collection,
+    metal: bpy.types.Material,
+    as_gate: bool,
+    at: tuple[float, float, float] | None = None,
+) -> list[bpy.types.Object]:
+    """A pair of spectacles, left arm bent.
+
+    Built from four small pieces rather than one box because the bend is the
+    entire point: it is the fault he could have put right in four minutes, and
+    it has to be visible enough to read as damage from where the viewer stands.
+
+    Small, so as a gate it sits closer to the front of the bench than the radio
+    or the clock -- a thing you have to lean toward rather than one that
+    announces itself.
+    """
+    x, y, z = at if at is not None else (-0.06, -1.32, BENCH_TOP + 0.02)
+    parts: list[bpy.types.Object] = []
+
+    name = gate_name("spectacles") if as_gate else f"{prefix}_spectacles"
+    front = add_prop(name, (0.14, 0.012, 0.035), (x, y, z), collection)
+    assign(front, metal)
+    if as_gate:
+        set_extras(front, gateId="spectacles", role="gate")
+    parts.append(front)
+
+    # Right arm, folded flat along the bench as it should be.
+    right = add_prop(f"{prefix}_spec_arm_r", (0.012, 0.11, 0.008), (x + 0.062, y + 0.058, z), collection)
+    assign(right, metal)
+    parts.append(right)
+
+    # Left arm, splayed out and lifted. She sat on them.
+    left = add_prop(f"{prefix}_spec_arm_l", (0.012, 0.11, 0.008), (x - 0.058, y + 0.052, z + 0.012), collection)
+    left.rotation_euler = (0.0, -0.42, 0.30)
+    assign(left, metal)
+    parts.append(left)
+
+    return parts
+
+
 # --- Era presets ------------------------------------------------------------
 
 PRESENT = Era(
@@ -295,6 +336,27 @@ PRESENT = Era(
     daylight_strength=3.6,
     bulb=(1.0, 0.79, 0.48),
     bulb_strength=18.0,
+    shelf_load=[
+        (0.20, 0.95, 1.50, (0.22, 0.30, 0.24)),
+        (0.18, 0.52, 1.46, (0.20, 0.22, 0.16)),
+        (0.20, -0.15, 1.99, (0.24, 0.34, 0.22)),
+    ],
+)
+
+#: Almost the present. Late, thin, tidy -- by now he was keeping the place
+#: rather than working in it. Deliberately within a few percent of PRESENT: the
+#: viewer should not be able to say what changed, only that this is nearly now.
+#: One notch warmer, and the bulb a little brighter, because he was still here.
+HER_GLASSES = Era(
+    plaster=(0.59, 0.53, 0.44),
+    floor=(0.30, 0.21, 0.13),
+    timber=(0.43, 0.30, 0.17),
+    timber_dark=(0.25, 0.18, 0.11),
+    metal=(0.34, 0.33, 0.32),
+    daylight=(0.78, 0.80, 0.94),
+    daylight_strength=3.2,
+    bulb=(1.0, 0.78, 0.46),
+    bulb_strength=21.0,
     shelf_load=[
         (0.20, 0.95, 1.50, (0.22, 0.30, 0.24)),
         (0.18, 0.52, 1.46, (0.20, 0.22, 0.16)),

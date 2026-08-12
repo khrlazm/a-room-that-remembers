@@ -10,6 +10,7 @@ import { GazeReticle } from './ui/gazeReticle';
 import { DriftingSubtitles, mirrorToDom } from './ui/subtitles';
 import {
   CODA_SOUND,
+  HER_GLASSES_SOUND,
   HUB_SOUND,
   Soundscape,
   THE_LONG_NIGHT_SOUND,
@@ -37,6 +38,8 @@ const SOUND_BY_CHAPTER: Record<string, typeof HUB_SOUND> = {
   coda_radio: CODA_SOUND,
   era_clock: THE_LONG_NIGHT_SOUND,
   coda_clock: CODA_SOUND,
+  era_spectacles: HER_GLASSES_SOUND,
+  coda_spectacles: CODA_SOUND,
 };
 
 function setStatus(message: string): void {

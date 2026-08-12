@@ -73,6 +73,23 @@ export const THE_LONG_NIGHT_SOUND: EraSound = {
   mainsHz: 50,
 };
 
+/**
+ * Her glasses: nearly the present, and quieter than it.
+ *
+ * Almost identical to the hub, which is the point -- the viewer should not be
+ * able to say what changed. The radio is on but turned right down, because he
+ * still switched it on out of habit; the weather is thinner. Nothing here
+ * announces itself.
+ */
+export const HER_GLASSES_SOUND: EraSound = {
+  roomTone: 0.46,
+  radioHum: 0.16,
+  radioStatic: 0.04,
+  outside: 0.22,
+  filament: 0.12,
+  mainsHz: 50,
+};
+
 /** Warmer, louder, working: the radio is on and the room is occupied. */
 export const WORKING_YEARS_SOUND: EraSound = {
   roomTone: 0.62,

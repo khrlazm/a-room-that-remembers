@@ -28,6 +28,7 @@ from lib.workshop import (  # noqa: E402
     add_anchors,
     add_clock,
     add_radio,
+    add_spectacles,
     build_room,
 )
 
@@ -55,6 +56,12 @@ def build() -> Chapter:
     )
     room.dynamic.append(clock)
     room.static.append(dial_plate)
+
+    # And her glasses, near the front edge, small. The last gate the eye finds,
+    # which is the right order: it is the one he never got to.
+    spectacles = add_spectacles(CHAPTER_ID, collection, room.materials["metal"], as_gate=True)
+    room.dynamic.append(spectacles[0])
+    room.static.extend(spectacles[1:])
 
     add_anchors(collection)
 
