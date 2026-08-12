@@ -7,6 +7,15 @@ import '@babylonjs/core/XR/features/WebXRNearInteraction';
 import '@babylonjs/core/XR/features/WebXRHandTracking';
 
 import type { Scene } from '@babylonjs/core/scene';
+import type { Mesh } from '@babylonjs/core/Meshes/mesh';
+import { Color3 } from '@babylonjs/core/Maths/math.color';
+import { StandardMaterial } from '@babylonjs/core/Materials/standardMaterial';
+import { CreateSphere } from '@babylonjs/core/Meshes/Builders/sphereBuilder';
+import {
+  WebXRHandJoint,
+  type WebXRHandTracking,
+} from '@babylonjs/core/XR/features/WebXRHandTracking';
+import { WebXRFeatureName } from '@babylonjs/core/XR/webXRFeaturesManager';
 import type { FreeCamera } from '@babylonjs/core/Cameras/freeCamera';
 import { WebXRDefaultExperience } from '@babylonjs/core/XR/webXRDefaultExperience';
 import type { WebXRDefaultExperienceOptions } from '@babylonjs/core/XR/webXRDefaultExperience';
@@ -58,6 +67,21 @@ export async function setupXR(scene: Scene, options: XrOptions): Promise<XrSessi
     // Babylon knows about. A session that fails because an unrelated optional
     // feature was refused would be a miserable thing to diagnose on a headset.
     optionalFeatures: ['hand-tracking'],
+    handSupportOptions: {
+      handMeshes: {
+        // Babylon's default rigged hand is fetched from its asset CDN. Beyond
+        // being an external dependency this project has spent real effort
+        // avoiding, a partial load leaves the mesh sitting at the world origin
+        // on the floor -- visible, wrong, and nothing to do with your hands.
+        disableDefaultMeshes: true,
+      },
+      jointMeshes: {
+        sourceMesh: makeJointMesh(scene),
+        // Slightly smaller than the tracked joint, so the fingertips read as
+        // points rather than the mittens the default spheres suggest.
+        scaleFactor: 0.7,
+      },
+    },
   };
 
   let experience: WebXRDefaultExperience;
@@ -80,6 +104,7 @@ export async function setupXR(scene: Scene, options: XrOptions): Promise<XrSessi
     inSession = entering;
     if (entering) {
       tuneSession(base.sessionManager);
+      watchHands(base);
       options.onEnter?.();
     } else {
       options.onExit?.();
@@ -103,6 +128,58 @@ export async function setupXR(scene: Scene, options: XrOptions): Promise<XrSessi
       await base.exitXRAsync();
     },
   };
+}
+
+/**
+ * The joint marker: a small, dim bead.
+ *
+ * Deliberately understated. The piece is a dim room and the hands are the
+ * viewer's, not a character's -- bright tracked spheres would read as equipment
+ * floating in front of them. Low-poly because there are twenty-five of these
+ * per hand and they are a couple of centimetres across.
+ */
+function makeJointMesh(scene: Scene): Mesh {
+  const material = new StandardMaterial('joint-mat', scene);
+  material.diffuseColor = Color3.Black();
+  material.specularColor = Color3.Black();
+  material.emissiveColor = new Color3(0.36, 0.33, 0.3);
+  material.disableLighting = true;
+  material.alpha = 0.65;
+
+  const mesh = CreateSphere('joint-source', { diameter: 0.012, segments: 5 }, scene);
+  mesh.material = material;
+  mesh.isPickable = false;
+  // The source is a template Babylon instances from; it must not draw itself.
+  mesh.setEnabled(false);
+  return mesh;
+}
+
+/**
+ * Clear stale hand beads when a hand goes away.
+ *
+ * Picking up a controller ends hand tracking, but Babylon reuses rather than
+ * destroys the joint meshes, so they are left hanging wherever the hand was
+ * last seen and nothing else clears them. `onHandRemovedObservable` fires both
+ * when a controller is picked up and when hands leave the tracking volume.
+ */
+function watchHands(base: WebXRDefaultExperience['baseExperience']): void {
+  const handTracking = base.featuresManager.getEnabledFeature(
+    WebXRFeatureName.HAND_TRACKING,
+  ) as WebXRHandTracking | null;
+  if (!handTracking) return;
+
+  handTracking.onHandRemovedObservable.add((hand) => {
+    for (const joint of Object.values(WebXRHandJoint)) {
+      const mesh = hand.getJointMesh(joint);
+      if (mesh) mesh.setEnabled(false);
+    }
+  });
+  handTracking.onHandAddedObservable.add((hand) => {
+    for (const joint of Object.values(WebXRHandJoint)) {
+      const mesh = hand.getJointMesh(joint);
+      if (mesh) mesh.setEnabled(true);
+    }
+  });
 }
 
 /** Apply the standalone-headset settings that are only valid inside a session. */

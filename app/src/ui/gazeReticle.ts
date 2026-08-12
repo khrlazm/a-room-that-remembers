@@ -17,23 +17,26 @@ const STANDOFF = 0.26;
 const REDRAW_STEP = 0.02;
 
 /**
- * Palette. Dark, because the room is dark.
+ * Palette: a dark ring carried by a light halo.
  *
- * The first version drew a pale cream track with a bright amber fill, which
- * bloomed against the window and read as interface laid over the room rather
- * than as something in it. Inverting it costs one problem though: a dark ring
- * disappears into the room's dark corners as readily as a light one blew out
- * against the glass. So the ring is dark with a faint light rim -- the rim
- * carries it against shadow, the dark body carries it against the window, and
- * neither ever glows.
+ * Any single tone fails somewhere in this room. A pale ring blew out against
+ * the window; a dark one vanished into the unlit corners, and a faint rim was
+ * not enough to rescue it. So every stroke is drawn twice -- a soft light halo
+ * underneath, a dark core on top. Against the bright window the dark core
+ * reads; against shadow the halo does. Neither ever glows, which is what kept
+ * the first version from feeling like part of the room.
+ *
+ * This is the standard trick for UI that cannot know its background, and it is
+ * worth the two extra strokes on a 128px canvas that repaints at most fifty
+ * times across a dwell.
  */
 const RETICLE = {
-  /** Hairline outside the track, for separation against dark corners. */
-  rim: 'rgba(238, 232, 222, 0.13)',
-  /** The unfilled ring. */
-  track: 'rgba(6, 5, 4, 0.55)',
-  /** The dwell fill. Warm but muted -- legible, never a light source. */
-  progress: 'rgba(196, 146, 82, 0.92)',
+  /** Drawn under everything, wider, to lift the dark strokes off dark scenery. */
+  halo: 'rgba(248, 244, 236, 0.5)',
+  /** The unfilled ring. Near-opaque so it holds against the window. */
+  track: 'rgba(10, 8, 6, 0.82)',
+  /** The dwell fill. Warm and solid, but not a light source. */
+  progress: 'rgba(206, 152, 78, 1)',
 };
 
 /**
@@ -152,28 +155,27 @@ export class GazeReticle {
     ctx.clearRect(0, 0, CANVAS, CANVAS);
     ctx.lineCap = 'round';
 
-    // Faint rim just outside the track. Without it the dark ring vanishes
-    // into the room's unlit corners.
-    ctx.beginPath();
-    ctx.arc(c, c, radius + 3.5, 0, Math.PI * 2);
-    ctx.strokeStyle = RETICLE.rim;
-    ctx.lineWidth = 1.5;
-    ctx.stroke();
+    const ring = (from: number, to: number, colour: string, width: number) => {
+      // Halo first, wider and underneath.
+      ctx.beginPath();
+      ctx.arc(c, c, radius, from, to);
+      ctx.strokeStyle = RETICLE.halo;
+      ctx.lineWidth = width + 5;
+      ctx.stroke();
+      // Core on top.
+      ctx.beginPath();
+      ctx.arc(c, c, radius, from, to);
+      ctx.strokeStyle = colour;
+      ctx.lineWidth = width;
+      ctx.stroke();
+    };
 
     // Track: says "this is lookable" the moment the gaze lands.
-    ctx.beginPath();
-    ctx.arc(c, c, radius, 0, Math.PI * 2);
-    ctx.strokeStyle = RETICLE.track;
-    ctx.lineWidth = 5;
-    ctx.stroke();
+    ring(0, Math.PI * 2, RETICLE.track, 5);
 
     if (progress > 0) {
       // Fill clockwise from twelve o'clock, which reads as time passing.
-      ctx.beginPath();
-      ctx.arc(c, c, radius, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * progress);
-      ctx.strokeStyle = RETICLE.progress;
-      ctx.lineWidth = 7;
-      ctx.stroke();
+      ring(-Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * progress, RETICLE.progress, 7);
     }
 
     this.texture.update(false);

@@ -18,6 +18,7 @@ import '@babylonjs/core/Physics/joinedPhysicsEngineComponent';
 
 import type { Scene } from '@babylonjs/core/scene';
 import type { AbstractMesh } from '@babylonjs/core/Meshes/abstractMesh';
+import { CreateSphere } from '@babylonjs/core/Meshes/Builders/sphereBuilder';
 import { Vector3 } from '@babylonjs/core/Maths/math.vector';
 import { HavokPlugin } from '@babylonjs/core/Physics/v2/Plugins/havokPlugin';
 import { PhysicsAggregate } from '@babylonjs/core/Physics/v2/physicsAggregate';
@@ -29,11 +30,16 @@ import {
 import { FrameClock } from '../engine/clock';
 
 /**
- * Objects drift; they never fly. High damping is what separates a memory coming
+ * Objects drift; they never fly. Damping is what separates a memory coming
  * apart from a box of toys tipped over.
+ *
+ * Tuned down from 1.6/1.2 once touch was working: at the higher value a brushed
+ * object barely acknowledged the hand, which made the objects feel like images
+ * again. Safety comes from MAX_SPEED rather than from smothering every impulse,
+ * so this can afford to be responsive.
  */
-const LINEAR_DAMPING = 1.6;
-const ANGULAR_DAMPING = 1.2;
+const LINEAR_DAMPING = 1.15;
+const ANGULAR_DAMPING = 0.85;
 
 /** Metres from the vantage at which the gentle inward pull begins. */
 const CONTAIN_SOFT = 1.15;
@@ -51,11 +57,27 @@ export interface Grabbable {
   aggregate: PhysicsAggregate;
 }
 
+/**
+ * A hand or controller, present in the simulation as a solid.
+ *
+ * Without one, hands pass straight through everything until the moment they
+ * pinch, which makes the objects feel like images rather than things. A small
+ * kinematic sphere driven by the palm means brushing past a floating radio
+ * actually sends it turning.
+ */
+export interface Toucher {
+  moveTo(position: Vector3): void;
+  setActive(active: boolean): void;
+  dispose(): void;
+}
+
 export interface PhysicsWorld {
   readonly plugin: HavokPlugin;
   readonly grabbables: Grabbable[];
   /** Give a mesh a body and register it as catchable. */
   add(mesh: AbstractMesh, id: string, mass: number): Grabbable;
+  /** A solid that follows a hand, so touching pushes things. */
+  addToucher(id: string, radius?: number): Toucher;
   /** Bodies currently awake, for the perf readout. */
   activeCount(): number;
   dispose(): void;
@@ -151,6 +173,40 @@ export async function createPhysicsWorld(scene: Scene, centre: Vector3): Promise
       const grabbable: Grabbable = { id, mesh, aggregate };
       grabbables.push(grabbable);
       return grabbable;
+    },
+
+    addToucher(id, radius = 0.045) {
+      const sphere = CreateSphere(`toucher-${id}`, { diameter: radius * 2, segments: 6 }, scene);
+      sphere.isVisible = false;
+      sphere.isPickable = false;
+
+      const aggregate = new PhysicsAggregate(
+        sphere,
+        PhysicsShapeType.SPHERE,
+        { mass: 0, restitution: 0.1, friction: 0.9 },
+        scene,
+      );
+      // ANIMATED: driven from outside the simulation, but still pushes dynamic
+      // bodies out of its way. STATIC would be immovable *and* unmovable.
+      aggregate.body.setMotionType(PhysicsMotionType.ANIMATED);
+      // Without this the body never reads the mesh transform, so the hand would
+      // be a solid parked wherever it was created. Babylon disables the
+      // pre-step by default for performance.
+      aggregate.body.disablePreStep = false;
+      sphere.setEnabled(false);
+
+      return {
+        moveTo(position: Vector3) {
+          sphere.setAbsolutePosition(position);
+        },
+        setActive(active: boolean) {
+          sphere.setEnabled(active);
+        },
+        dispose() {
+          aggregate.dispose();
+          sphere.dispose();
+        },
+      };
     },
 
     activeCount() {

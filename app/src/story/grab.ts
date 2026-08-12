@@ -13,7 +13,7 @@ import {
 } from '@babylonjs/core/XR/features/WebXRHandTracking';
 import type { WebXRInputSource } from '@babylonjs/core/XR/webXRInputSource';
 
-import type { Grabbable, PhysicsWorld } from '../physics/world';
+import type { Grabbable, PhysicsWorld, Toucher } from '../physics/world';
 import type { XrSession } from '../engine/xr';
 
 /**
@@ -87,6 +87,7 @@ function makePose(id: string): HandPose {
 export class GrabController {
   private readonly poses = new Map<string, HandPose>();
   private readonly held = new Map<string, Held>();
+  private readonly touchers = new Map<string, Toucher>();
   private readonly controllers = new Map<string, WebXRInputSource>();
   private handTracking: WebXRHandTracking | null = null;
   private observer: Nullable<Observer<Scene>> = null;
@@ -159,6 +160,16 @@ export class GrabController {
       this.poses.set(id, pose);
     }
     return pose;
+  }
+
+  /** The physical solid standing in for this input source. */
+  private toucher(id: string): Toucher {
+    let toucher = this.touchers.get(id);
+    if (!toucher) {
+      toucher = this.world.addToucher(id);
+      this.touchers.set(id, toucher);
+    }
+    return toucher;
   }
 
   private collectHands(): void {
@@ -249,6 +260,11 @@ export class GrabController {
     for (const pose of this.poses.values()) {
       const holding = this.held.get(pose.id);
 
+      // Keep this input's solid where the hand is, so objects respond to being
+      // brushed rather than only to being pinched.
+      this.toucher(pose.id).setActive(pose.valid);
+      if (pose.valid) this.toucher(pose.id).moveTo(pose.position);
+
       if (!pose.valid) {
         if (holding) this.release(pose.id);
         continue;
@@ -283,6 +299,11 @@ export class GrabController {
     // ANIMATED rather than STATIC: the object is being driven by something
     // outside the simulation but must still push other bodies out of its way.
     body.setMotionType(PhysicsMotionType.ANIMATED);
+    // Babylon disables the pre-step by default for performance, which means the
+    // body ignores its transform node entirely. Without this the mesh moves in
+    // the hand while its body stays behind: the held object looks right and
+    // collides with nothing, passing straight through everything it meets.
+    body.disablePreStep = false;
 
     // Preserve where the object sits in the hand, so it does not snap to the
     // pinch point the instant it is caught.
@@ -329,6 +350,8 @@ export class GrabController {
 
     const body = holding.grabbable.aggregate.body;
     body.setMotionType(PhysicsMotionType.DYNAMIC);
+    // Back to Havok driving the transform rather than the other way round.
+    body.disablePreStep = true;
 
     // Hand back a fraction of the hand's motion, hard-clamped. A flick should
     // set something turning slowly, never launch it at the viewer's face.
@@ -355,6 +378,8 @@ export class GrabController {
     for (const id of [...this.held.keys()]) this.release(id);
     if (this.observer) this.scene.onBeforeRenderObservable.remove(this.observer);
     this.observer = null;
+    for (const toucher of this.touchers.values()) toucher.dispose();
+    this.touchers.clear();
     this.poses.clear();
     this.controllers.clear();
   }
