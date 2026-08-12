@@ -54,6 +54,13 @@ class Era:
     #: Whether the ceiling bulb is switched on at all.
     bulb_on: bool = True
 
+    #: An anglepoise on the bench. When set, this is the only warm light in the
+    #: room and it throws one hard pool rather than filling the space -- which
+    #: is what a night shift looks like, and what the ceiling bulb cannot do
+    #: however far it is dimmed.
+    lamp: Color | None = None
+    lamp_strength: float = 24.0
+
     #: Boxes on the shelves: (x_inset, y, z, size). Clutter is era-specific.
     shelf_load: list[tuple[float, float, float, tuple[float, float, float]]] = field(
         default_factory=list
@@ -157,6 +164,55 @@ def build_room(prefix: str, era: Era, collection: bpy.types.Collection) -> Room:
         assign(filament, bulb)
         static.append(filament)
 
+    # --- Bench lamp ---------------------------------------------------------
+    if era.lamp is not None:
+        lamp_material = emission_material(f"{prefix}_worklamp", era.lamp, era.lamp_strength)
+        materials["lamp"] = lamp_material
+
+        # Clamped to the bench end, reaching over the work. Sits to the right so
+        # it lights the bench without standing between the viewer and it.
+        base = add_box(
+            f"{prefix}_worklamp_base", (0.14, 0.14, 0.03), (0.86, -1.30, BENCH_TOP + 0.015), collection
+        )
+        assign(base, metal)
+        static.append(base)
+
+        post = add_box(
+            f"{prefix}_worklamp_post", (0.03, 0.03, 0.44), (0.86, -1.30, BENCH_TOP + 0.24), collection
+        )
+        assign(post, metal)
+        static.append(post)
+
+        # The arm reaches most of the way across the bench, so the pool lands on
+        # the work rather than beside it. A shorter arm put the light onto the
+        # clock case and left the movement -- the thing the beat is about --
+        # lit only by the window.
+        arm = add_box(
+            f"{prefix}_worklamp_arm", (1.00, 0.03, 0.03), (0.36, -1.24, BENCH_TOP + 0.45), collection
+        )
+        assign(arm, metal)
+        static.append(arm)
+
+        shade = add_box(
+            f"{prefix}_worklamp_shade", (0.22, 0.22, 0.11), (-0.12, -1.20, BENCH_TOP + 0.39), collection
+        )
+        assign(shade, metal)
+        static.append(shade)
+
+        # The emitter faces straight down out of the shade, so the pool has a
+        # hard edge and the rest of the room stays where it belongs: dark.
+        #
+        # Hung clear below the shade's underside rather than flush with it. Sat
+        # coplanar the shade occludes its own bulb and the lamp contributes
+        # nothing at all -- the fixture renders, the room stays lit only by the
+        # window, and nothing about the image says why.
+        glow = add_plane(
+            f"{prefix}_worklamp_glow", "Z", BENCH_TOP + 0.30,
+            (-0.22, -0.02), (-1.30, -1.10), collection, facing="-Z",
+        )
+        assign(glow, lamp_material)
+        static.append(glow)
+
     return Room(static=static, dynamic=dynamic, materials=materials)
 
 
@@ -199,6 +255,33 @@ def add_radio(
     return radio, face
 
 
+def add_clock(
+    prefix: str,
+    collection: bpy.types.Collection,
+    case: bpy.types.Material,
+    face: bpy.types.Material,
+    as_gate: bool,
+) -> tuple[bpy.types.Object, bpy.types.Object]:
+    """A mantel clock on the bench, right of centre.
+
+    Sits opposite the radio so the two gates never crowd each other, and far
+    enough apart that a gaze dwelling on one cannot be caught by the other.
+    """
+    name = gate_name("clock") if as_gate else f"{prefix}_clock"
+    body = add_box(name, (0.26, 0.18, 0.34), (0.52, -1.16, BENCH_TOP + 0.17), collection)
+    assign(body, case)
+    if as_gate:
+        set_extras(body, gateId="clock", role="gate")
+
+    # The dial, proud of the +Y face -- the side the viewer stands on.
+    dial = add_plane(
+        f"{prefix}_clock_face", "Y", -1.16 + 0.091,
+        (0.42, 0.62), (BENCH_TOP + 0.16, BENCH_TOP + 0.30), collection, facing="+Y",
+    )
+    assign(dial, face)
+    return body, dial
+
+
 # --- Era presets ------------------------------------------------------------
 
 PRESENT = Era(
@@ -216,6 +299,32 @@ PRESENT = Era(
         (0.20, 0.95, 1.50, (0.22, 0.30, 0.24)),
         (0.18, 0.52, 1.46, (0.20, 0.22, 0.16)),
         (0.20, -0.15, 1.99, (0.24, 0.34, 0.22)),
+    ],
+)
+
+#: Deep winter, small hours, and the coldest the room ever gets. The ceiling
+#: bulb is off entirely: the bench lamp makes one hard pool and everything
+#: outside it belongs to the window, which is moonlit snow and the brightest
+#: thing anywhere in the piece. It should feel like the only lit place for miles.
+THE_LONG_NIGHT = Era(
+    plaster=(0.42, 0.44, 0.50),
+    floor=(0.20, 0.19, 0.20),
+    timber=(0.30, 0.26, 0.22),
+    timber_dark=(0.18, 0.16, 0.14),
+    metal=(0.34, 0.35, 0.37),
+    # Bright, but not so bright it clips to a flat white rectangle and stops
+    # reading as snow.
+    daylight=(0.62, 0.74, 1.0),
+    daylight_strength=1.7,
+    bulb=(1.0, 0.79, 0.48),
+    bulb_strength=0.0,
+    bulb_on=False,
+    lamp=(1.0, 0.86, 0.62),
+    lamp_strength=42.0,
+    shelf_load=[
+        (0.20, 0.88, 1.50, (0.22, 0.28, 0.22)),
+        (0.19, 0.30, 1.47, (0.20, 0.24, 0.18)),
+        (0.20, -0.30, 1.98, (0.22, 0.32, 0.20)),
     ],
 )
 

@@ -8,7 +8,13 @@ import { Sequencer } from './story/sequencer';
 import { loadStory } from './story/types';
 import { GazeReticle } from './ui/gazeReticle';
 import { DriftingSubtitles, mirrorToDom } from './ui/subtitles';
-import { CODA_SOUND, HUB_SOUND, Soundscape, WORKING_YEARS_SOUND } from './audio/procedural';
+import {
+  CODA_SOUND,
+  HUB_SOUND,
+  Soundscape,
+  THE_LONG_NIGHT_SOUND,
+  WORKING_YEARS_SOUND,
+} from './audio/procedural';
 import { VoicePlayer } from './audio/voice';
 import type { Beat } from './story/types';
 import { exposeDebugHandle, PerfMonitor } from './dev/debug';
@@ -29,6 +35,8 @@ const SOUND_BY_CHAPTER: Record<string, typeof HUB_SOUND> = {
   hub: HUB_SOUND,
   era_radio: WORKING_YEARS_SOUND,
   coda_radio: CODA_SOUND,
+  era_clock: THE_LONG_NIGHT_SOUND,
+  coda_clock: CODA_SOUND,
 };
 
 function setStatus(message: string): void {

@@ -58,6 +58,19 @@ there, her turned toward him.
 
 ## 2. Clock — the long night
 
+Built: `scenes/era_clock.py` and `scenes/coda_clock.py`, preset `THE_LONG_NIGHT`.
+
+Two things learned building it, both now in the kit:
+
+- The bench lamp is a new `Era` field (`lamp`, `lamp_strength`) rather than the
+  ceiling bulb dimmed. A bulb at the ceiling fills a room however low you take
+  it; only a lamp on the bench gives one hard pool with dark around it.
+- Its emitter hangs clear **below** the shade. Sat flush with the underside, the
+  shade occludes its own bulb: the fixture renders, the room stays lit by the
+  window alone, and nothing in the image explains why. The arm also has to reach
+  most of the way over the bench, or the pool lands on the clock case instead of
+  on the work the beat is about.
+
 **Era.** Deep winter, small hours. The coldest the room ever gets. The bulb is
 off; a single work lamp on the bench makes one hard pool of light and leaves the
 rest of the room to the window, which is moonlit snow — near-white, blue, and

@@ -50,6 +50,29 @@
         { "atMs": 57200, "text": "But it's a small thing, isn't it. To keep something going. After." },
         { "atMs": 64100, "text": "It's the only kind of mending I was ever any good at." }
       ]
+    },
+    {
+      "id": "clock",
+      "kind": "era",
+      "gate": "clock",
+      "chapter": "era_clock",
+      "coda": "coda_clock",
+      "codaMs": 30000,
+      "voice": "clock.mp3",
+      "$voiceNote": "Take is 59.79s against 76s scripted, so cues are scaled by 0.787. Scaling assumes even pacing, which speech is not -- re-time by ear with ?capture=1.",
+      "durationMs": 61300,
+      "lines": [
+        { "atMs": 800, "text": "A mantel clock. Eighteen-nineties, and not a good one even then." },
+        { "atMs": 6300, "text": "Fellow brought it in on the Thursday. His father had just died. Wanted it going again for the Saturday." },
+        { "atMs": 12600, "text": "I said I'd try. I didn't say I'd manage it." },
+        { "atMs": 17300, "text": "It wanted a mainspring, and there was no mainspring to be had. Not that size. Not by Saturday." },
+        { "atMs": 23600, "text": "So I sat here all Friday night, and I made one. Out of another clock that wasn't worth the mending." },
+        { "atMs": 29900, "text": "Robbed one dead clock to wake another. That's most of this trade, if I'm honest about it." },
+        { "atMs": 36200, "text": "It chimed at four in the morning, and I sat in the dark and listened to it do it." },
+        { "atMs": 42500, "text": "Nobody heard that but me." },
+        { "atMs": 47200, "text": "He cried when he collected it. Grown man, stood in that doorway." },
+        { "atMs": 52700, "text": "I put the kettle on and looked out the window till he'd finished." }
+      ]
     }
   ]
 }

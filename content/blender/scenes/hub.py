@@ -18,7 +18,7 @@ from lib.bake import ensure_uv_layer  # noqa: E402
 from lib.blendutil import ensure_collection, reset_scene, use_cycles  # noqa: E402
 from lib.build import Chapter, finalize  # noqa: E402
 from lib.cli import finish, parse  # noqa: E402
-from lib.materials import emission_material  # noqa: E402
+from lib.materials import emission_material, flat_material  # noqa: E402
 from lib.naming import chapter_name  # noqa: E402
 from lib.preview import render_from  # noqa: E402
 from lib.workshop import (  # noqa: E402
@@ -26,6 +26,7 @@ from lib.workshop import (  # noqa: E402
     PRESENT,
     VIEWER_AT,
     add_anchors,
+    add_clock,
     add_radio,
     build_room,
 )
@@ -37,14 +38,23 @@ def build() -> Chapter:
     collection = ensure_collection(chapter_name(CHAPTER_ID))
     room = build_room(CHAPTER_ID, PRESENT, collection)
 
-    # The radio still works. It is the only warm thing in the present-day room,
-    # which is what makes it the object the eye goes to.
+    # The radio still works. It is the warmest thing in the present-day room,
+    # which is what makes it the object the eye goes to first.
     dial = emission_material(f"{CHAPTER_ID}_dial", (1.0, 0.63, 0.24), strength=6.0)
     radio, face = add_radio(
         CHAPTER_ID, collection, room.materials["timber_dark"], dial, as_gate=True
     )
     room.dynamic.append(radio)
     room.static.append(face)
+
+    # The clock does not. Its dial catches the window rather than lighting
+    # itself -- a gate the eye finds second, which is the right order.
+    clock_face = flat_material(f"{CHAPTER_ID}_clock_face", (0.74, 0.71, 0.64), roughness=0.4)
+    clock, dial_plate = add_clock(
+        CHAPTER_ID, collection, room.materials["timber"], clock_face, as_gate=True
+    )
+    room.dynamic.append(clock)
+    room.static.append(dial_plate)
 
     add_anchors(collection)
 

@@ -56,6 +56,23 @@ export const CODA_SOUND: EraSound = {
   mainsHz: 50,
 };
 
+/**
+ * The long night: a winter room at four in the morning.
+ *
+ * Almost nothing. The radio is off, the ceiling bulb is off, and what is left is
+ * a thin room tone and the faintest filament buzz from a single bench lamp. The
+ * outside is snow, which absorbs rather than carries sound -- so the window
+ * layer, which is weather everywhere else, is nearly silent here.
+ */
+export const THE_LONG_NIGHT_SOUND: EraSound = {
+  roomTone: 0.4,
+  radioHum: 0.0,
+  radioStatic: 0.0,
+  outside: 0.06,
+  filament: 0.22,
+  mainsHz: 50,
+};
+
 /** Warmer, louder, working: the radio is on and the room is occupied. */
 export const WORKING_YEARS_SOUND: EraSound = {
   roomTone: 0.62,

@@ -91,7 +91,10 @@ function runBlender(blender, scenePath, quality) {
     ];
 
     const child = spawn(blender, args, { cwd: ROOT });
-    const interesting = /^\[(build|hub|era)/;
+    // Any bracketed tag a scene script prints. Previously an explicit list of
+    // prefixes, which silently swallowed every coda's own "wrote" line as soon
+    // as chapters stopped being called hub or era.
+    const interesting = /^\[[a-z_]+\]/i;
     let stderr = '';
 
     const forward = (chunk, isError) => {
