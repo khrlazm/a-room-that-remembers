@@ -149,8 +149,13 @@ function makeJointMesh(scene: Scene): Mesh {
   const mesh = CreateSphere('joint-source', { diameter: 0.012, segments: 5 }, scene);
   mesh.material = material;
   mesh.isPickable = false;
-  // The source is a template Babylon instances from; it must not draw itself.
-  mesh.setEnabled(false);
+  // Hidden via isVisible, never setEnabled. Babylon builds each joint with
+  // `sourceMesh.createInstance()`, and an InstancedMesh reports itself disabled
+  // whenever its source is -- so disabling the template hides all fifty joints
+  // and the hands vanish entirely. `isVisible` is exactly what Babylon sets on
+  // the template itself, and it does so only once a session attaches, which
+  // would otherwise leave this sphere sitting at the origin on desktop.
+  mesh.isVisible = false;
   return mesh;
 }
 

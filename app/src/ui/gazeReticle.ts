@@ -17,26 +17,20 @@ const STANDOFF = 0.26;
 const REDRAW_STEP = 0.02;
 
 /**
- * Palette: a dark ring carried by a light halo.
+ * Palette: a grey ring that fills with dark grey.
  *
- * Any single tone fails somewhere in this room. A pale ring blew out against
- * the window; a dark one vanished into the unlit corners, and a faint rim was
- * not enough to rescue it. So every stroke is drawn twice -- a soft light halo
- * underneath, a dark core on top. Against the bright window the dark core
- * reads; against shadow the halo does. Neither ever glows, which is what kept
- * the first version from feeling like part of the room.
- *
- * This is the standard trick for UI that cannot know its background, and it is
- * worth the two extra strokes on a 128px canvas that repaints at most fifty
- * times across a dwell.
+ * Neutral, after a pale version blew out against the window and a near-black
+ * one vanished into the unlit corners. Mid greys survive both, and the two
+ * tones cover each other's weakness: the lighter track carries the shape
+ * against shadow, the darker fill reads against the glass. No warm tint and no
+ * halo -- both were reaching for attention the piece does not want to give a
+ * piece of interface.
  */
 const RETICLE = {
-  /** Drawn under everything, wider, to lift the dark strokes off dark scenery. */
-  halo: 'rgba(248, 244, 236, 0.5)',
-  /** The unfilled ring. Near-opaque so it holds against the window. */
-  track: 'rgba(10, 8, 6, 0.82)',
-  /** The dwell fill. Warm and solid, but not a light source. */
-  progress: 'rgba(206, 152, 78, 1)',
+  /** The unfilled ring. */
+  track: 'rgba(148, 146, 142, 0.6)',
+  /** The dwell fill. */
+  progress: 'rgba(46, 45, 43, 0.95)',
 };
 
 /**
@@ -156,13 +150,6 @@ export class GazeReticle {
     ctx.lineCap = 'round';
 
     const ring = (from: number, to: number, colour: string, width: number) => {
-      // Halo first, wider and underneath.
-      ctx.beginPath();
-      ctx.arc(c, c, radius, from, to);
-      ctx.strokeStyle = RETICLE.halo;
-      ctx.lineWidth = width + 5;
-      ctx.stroke();
-      // Core on top.
       ctx.beginPath();
       ctx.arc(c, c, radius, from, to);
       ctx.strokeStyle = colour;
@@ -171,11 +158,11 @@ export class GazeReticle {
     };
 
     // Track: says "this is lookable" the moment the gaze lands.
-    ring(0, Math.PI * 2, RETICLE.track, 5);
+    ring(0, Math.PI * 2, RETICLE.track, 6);
 
     if (progress > 0) {
       // Fill clockwise from twelve o'clock, which reads as time passing.
-      ring(-Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * progress, RETICLE.progress, 7);
+      ring(-Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * progress, RETICLE.progress, 8);
     }
 
     this.texture.update(false);

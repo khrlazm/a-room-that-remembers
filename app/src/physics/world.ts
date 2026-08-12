@@ -33,13 +33,13 @@ import { FrameClock } from '../engine/clock';
  * Objects drift; they never fly. Damping is what separates a memory coming
  * apart from a box of toys tipped over.
  *
- * Tuned down from 1.6/1.2 once touch was working: at the higher value a brushed
- * object barely acknowledged the hand, which made the objects feel like images
- * again. Safety comes from MAX_SPEED rather than from smothering every impulse,
- * so this can afford to be responsive.
+ * Tuned down from 1.6 in two passes, judged in the headset each time: at the
+ * higher values a brushed object barely acknowledged the hand, which made the
+ * objects feel like images again. Safety comes from MAX_SPEED rather than from
+ * smothering every impulse, so this can afford to be responsive.
  */
-const LINEAR_DAMPING = 1.15;
-const ANGULAR_DAMPING = 0.85;
+const LINEAR_DAMPING = 1.0;
+const ANGULAR_DAMPING = 0.75;
 
 /** Metres from the vantage at which the gentle inward pull begins. */
 const CONTAIN_SOFT = 1.15;
