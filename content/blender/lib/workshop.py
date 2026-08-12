@@ -323,6 +323,51 @@ def add_spectacles(
     return parts
 
 
+def add_toolbox(
+    prefix: str,
+    collection: bpy.types.Collection,
+    timber: bpy.types.Material,
+    metal: bpy.types.Material,
+    as_gate: bool,
+) -> list[bpy.types.Object]:
+    """His father's toolbox, lid up, at the left rear of the bench.
+
+    Set apart from the other gates: it is the oldest thing in the room and the
+    only one that was never a customer's, so it sits where the bench meets the
+    wall rather than out at the front with the work.
+    """
+    x, y, z = -0.86, -1.10, BENCH_TOP
+    parts: list[bpy.types.Object] = []
+
+    name = gate_name("toolbox") if as_gate else f"{prefix}_toolbox"
+    body = add_box(name, (0.36, 0.22, 0.15), (x, y, z + 0.075), collection)
+    assign(body, timber)
+    if as_gate:
+        set_extras(body, gateId="toolbox", role="gate")
+    parts.append(body)
+
+    # Lid, hinged back and standing open.
+    lid = add_prop(f"{prefix}_toolbox_lid", (0.36, 0.02, 0.20), (x, y + 0.10, z + 0.24), collection)
+    lid.rotation_euler = (0.30, 0.0, 0.0)
+    assign(lid, timber)
+    parts.append(lid)
+
+    # Chisels laid out by size along the front of the box. The ordering is the
+    # characterisation again -- he was taught by someone who did this.
+    for index in range(3):
+        length = 0.16 + index * 0.03
+        chisel = add_box(
+            f"{prefix}_chisel_{index}",
+            (0.016, length, 0.012),
+            (x - 0.10 + index * 0.10, y - 0.24, z + 0.006),
+            collection,
+        )
+        assign(chisel, metal)
+        parts.append(chisel)
+
+    return parts
+
+
 # --- Era presets ------------------------------------------------------------
 
 PRESENT = Era(
@@ -340,6 +385,29 @@ PRESENT = Era(
         (0.20, 0.95, 1.50, (0.22, 0.30, 0.24)),
         (0.18, 0.52, 1.46, (0.20, 0.22, 0.16)),
         (0.20, -0.15, 1.99, (0.24, 0.34, 0.22)),
+    ],
+)
+
+#: The earliest era, and the only one lit by nothing but morning. Everything is
+#: younger: paler timber, fewer marks, shelves half-stocked because he had not
+#: filled them yet. The bulb is off -- it is daylight, and he could not afford
+#: the electricity. Hard, clean, and slightly too bright, the way early mornings
+#: are when you have been up for hours.
+WHAT_HE_WAS_GIVEN = Era(
+    plaster=(0.68, 0.65, 0.58),
+    floor=(0.38, 0.28, 0.19),
+    timber=(0.56, 0.41, 0.24),
+    timber_dark=(0.32, 0.23, 0.14),
+    metal=(0.40, 0.39, 0.37),
+    daylight=(0.92, 0.94, 1.0),
+    daylight_strength=5.5,
+    bulb=(1.0, 0.79, 0.48),
+    bulb_strength=0.0,
+    bulb_on=False,
+    # Half-stocked. He had not filled them yet.
+    shelf_load=[
+        (0.20, 0.72, 1.49, (0.22, 0.28, 0.22)),
+        (0.19, -0.10, 1.97, (0.20, 0.26, 0.18)),
     ],
 )
 

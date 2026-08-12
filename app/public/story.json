@@ -92,6 +92,29 @@
         { "atMs": 19000, "text": "I could mend these." },
         { "atMs": 23000, "text": "They've been on this bench eleven years and I've not touched them." }
       ]
+    },
+    {
+      "id": "toolbox",
+      "kind": "era",
+      "gate": "toolbox",
+      "chapter": "era_toolbox",
+      "coda": "coda_toolbox",
+      "codaMs": 28000,
+      "voice": "toolbox.mp3",
+      "$voiceNote": "Take is 57.81s against 85s scripted, cues scaled by 0.68. The last two lines are a pair -- do not let a re-time separate them.",
+      "durationMs": 59300,
+      "lines": [
+        { "atMs": 700, "text": "This was my father's. Everything in it, his." },
+        { "atMs": 5000, "text": "He put it on this bench the week I turned fourteen, and he said — right." },
+        { "atMs": 10500, "text": "That was the apprenticeship. That was all of it." },
+        { "atMs": 15000, "text": "He'd been a joiner. Good one. Hands like shovels, and he could take a shaving off you could read a newspaper through." },
+        { "atMs": 23000, "text": "Then they went. Sixty-one, sixty-two years old. Shook so bad he couldn't hold a chisel square." },
+        { "atMs": 30000, "text": "He never said one word about it. He just started handing me things." },
+        { "atMs": 35500, "text": "A job at a time. A bit at a time. Till there was nothing left that he was doing, and I'd never noticed him stop." },
+        { "atMs": 43000, "text": "I've sharpened these ten thousand times. There's barely a chisel left on some of them." },
+        { "atMs": 49500, "text": "I never bought new ones." },
+        { "atMs": 53000, "text": "Couldn't tell you why." }
+      ]
     }
   ]
 }

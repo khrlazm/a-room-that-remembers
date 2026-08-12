@@ -29,6 +29,7 @@ from lib.workshop import (  # noqa: E402
     add_clock,
     add_radio,
     add_spectacles,
+    add_toolbox,
     build_room,
 )
 
@@ -62,6 +63,13 @@ def build() -> Chapter:
     spectacles = add_spectacles(CHAPTER_ID, collection, room.materials["metal"], as_gate=True)
     room.dynamic.append(spectacles[0])
     room.static.extend(spectacles[1:])
+
+    # His father's toolbox, back against the wall. The oldest thing here.
+    toolbox = add_toolbox(
+        CHAPTER_ID, collection, room.materials["timber"], room.materials["metal"], as_gate=True
+    )
+    room.dynamic.append(toolbox[0])
+    room.static.extend(toolbox[1:])
 
     add_anchors(collection)
 

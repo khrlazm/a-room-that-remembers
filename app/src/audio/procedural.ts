@@ -90,6 +90,23 @@ export const HER_GLASSES_SOUND: EraSound = {
   mainsHz: 50,
 };
 
+/**
+ * What he was given: an early morning, decades before any of the rest.
+ *
+ * No radio at all -- he did not own one yet, and the one this piece is named
+ * for has not arrived. No bulb either. What is left is a room with hard
+ * surfaces and a street waking up outside, which is the only era where the
+ * window carries more than the room does.
+ */
+export const WHAT_HE_WAS_GIVEN_SOUND: EraSound = {
+  roomTone: 0.55,
+  radioHum: 0.0,
+  radioStatic: 0.0,
+  outside: 0.5,
+  filament: 0.0,
+  mainsHz: 50,
+};
+
 /** Warmer, louder, working: the radio is on and the room is occupied. */
 export const WORKING_YEARS_SOUND: EraSound = {
   roomTone: 0.62,

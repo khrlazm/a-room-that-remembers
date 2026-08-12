@@ -14,6 +14,7 @@ import {
   HUB_SOUND,
   Soundscape,
   THE_LONG_NIGHT_SOUND,
+  WHAT_HE_WAS_GIVEN_SOUND,
   WORKING_YEARS_SOUND,
 } from './audio/procedural';
 import { VoicePlayer } from './audio/voice';
@@ -40,6 +41,8 @@ const SOUND_BY_CHAPTER: Record<string, typeof HUB_SOUND> = {
   coda_clock: CODA_SOUND,
   era_spectacles: HER_GLASSES_SOUND,
   coda_spectacles: CODA_SOUND,
+  era_toolbox: WHAT_HE_WAS_GIVEN_SOUND,
+  coda_toolbox: CODA_SOUND,
 };
 
 function setStatus(message: string): void {
