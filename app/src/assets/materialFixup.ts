@@ -6,6 +6,8 @@ import { PBRMaterial } from '@babylonjs/core/Materials/PBR/pbrMaterial';
 export const EXTRA_UNLIT = 'unlit';
 export const EXTRA_GATE_ID = 'gateId';
 export const EXTRA_ROLE = 'role';
+export const EXTRA_GRAB = 'grab';
+export const EXTRA_MASS = 'mass';
 
 type GltfExtras = Record<string, unknown> | undefined;
 

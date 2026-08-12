@@ -39,6 +39,23 @@ export const HUB_SOUND: EraSound = {
   mainsHz: 50,
 };
 
+/**
+ * The coda: the room has let go.
+ *
+ * Almost everything falls away. No weather, because there is no window any
+ * more; barely any room tone, because there is barely any room. What is left is
+ * the radio's hum, close and steady -- the one thing in the piece that never
+ * stopped working.
+ */
+export const CODA_SOUND: EraSound = {
+  roomTone: 0.12,
+  radioHum: 0.55,
+  radioStatic: 0.08,
+  outside: 0.0,
+  filament: 0.0,
+  mainsHz: 50,
+};
+
 /** Warmer, louder, working: the radio is on and the room is occupied. */
 export const WORKING_YEARS_SOUND: EraSound = {
   roomTone: 0.62,

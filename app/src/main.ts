@@ -3,11 +3,12 @@ import { Fader } from './engine/comfort';
 import { setupXR } from './engine/xr';
 import { anchorPosition } from './assets/chapters';
 import { GazeController } from './story/gaze';
+import { GrabController } from './story/grab';
 import { Sequencer } from './story/sequencer';
 import { loadStory } from './story/types';
 import { GazeReticle } from './ui/gazeReticle';
 import { DriftingSubtitles, mirrorToDom } from './ui/subtitles';
-import { HUB_SOUND, Soundscape, WORKING_YEARS_SOUND } from './audio/procedural';
+import { CODA_SOUND, HUB_SOUND, Soundscape, WORKING_YEARS_SOUND } from './audio/procedural';
 import { VoicePlayer } from './audio/voice';
 import type { Beat } from './story/types';
 import { exposeDebugHandle, PerfMonitor } from './dev/debug';
@@ -27,6 +28,7 @@ const subtitleElement = document.getElementById('subtitles') as HTMLDivElement;
 const SOUND_BY_CHAPTER: Record<string, typeof HUB_SOUND> = {
   hub: HUB_SOUND,
   era_radio: WORKING_YEARS_SOUND,
+  coda_radio: CODA_SOUND,
 };
 
 function setStatus(message: string): void {
@@ -73,6 +75,16 @@ async function main(): Promise<void> {
     fader,
     voice: () => voice,
     voiceBase: import.meta.env.BASE_URL,
+    // The sequencer runs codas but knows nothing about XR sessions or input
+    // sources; it asks for a grabber and gets one wired to whatever is here.
+    makeGrabber: (world) => new GrabController(stage.scene, world, xr),
+    onPhysics: (world, grab) => {
+      perf.watchPhysics(
+        world && grab
+          ? { activeCount: () => world.activeCount(), holdingCount: () => grab.holdingCount }
+          : null,
+      );
+    },
     onLine: (text) => {
       captions.say(text);
       mirrorToDom(subtitleElement, text);
@@ -82,6 +94,7 @@ async function main(): Promise<void> {
       // voice sits on its own bus for exactly this reason.
       soundscape?.duck(playing ? 0.4 : 1, playing ? 0.8 : 1.6);
     },
+    onChapter: (chapterId) => soundscape?.apply(SOUND_BY_CHAPTER[chapterId] ?? HUB_SOUND),
     onBeatStart: (beat) => {
       currentBeat = beat;
       gaze.setArmed(false);

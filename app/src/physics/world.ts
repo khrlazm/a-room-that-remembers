@@ -33,10 +33,13 @@ import { FrameClock } from '../engine/clock';
  * Objects drift; they never fly. Damping is what separates a memory coming
  * apart from a box of toys tipped over.
  *
- * Tuned down from 1.6 in two passes, judged in the headset each time: at the
- * higher values a brushed object barely acknowledged the hand, which made the
- * objects feel like images again. Safety comes from MAX_SPEED rather than from
- * smothering every impulse, so this can afford to be responsive.
+ * Judged in the headset: contact should register as contact, and safety comes
+ * from MAX_SPEED and containment rather than from smothering every impulse.
+ *
+ * Briefly dropped to 0.12 while chasing objects that appeared frozen. They were
+ * not: driving `scene.render()` directly leaves `engine.getDeltaTime()` at zero,
+ * so the physics step integrated over no time at all and nothing could move. A
+ * measurement artefact, not a tuning problem.
  */
 const LINEAR_DAMPING = 1.0;
 const ANGULAR_DAMPING = 0.75;
@@ -158,6 +161,15 @@ export async function createPhysicsWorld(scene: Scene, centre: Vector3): Promise
     grabbables,
 
     add(mesh, id, mass) {
+      // Detach from the glTF loader's `__root__` first. Everything imported
+      // from a .glb arrives parented to it, and a physics body writes its
+      // transform into the node's *local* space -- so a parented prop has the
+      // parent's transform applied on top of Havok's and effectively refuses to
+      // move. `setParent(null)` keeps the mesh exactly where it appears while
+      // making its local transform its world transform. The mesh stays in the
+      // AssetContainer, so chapter disposal is unaffected.
+      if (mesh.parent) mesh.setParent(null);
+
       // A convex hull rather than the exact mesh: these are boxy props, the
       // difference is imperceptible when nothing collides hard, and hull
       // queries are far cheaper than triangle soup on a standalone headset.
@@ -227,7 +239,7 @@ export async function createPhysicsWorld(scene: Scene, centre: Vector3): Promise
 }
 
 /** Nudge everything into slow motion, so the coda opens already drifting. */
-export function stir(world: PhysicsWorld, strength = 0.18): void {
+export function stir(world: PhysicsWorld, strength = 0.32): void {
   for (const grabbable of world.grabbables) {
     const drift = new Vector3(
       (Math.random() - 0.5) * strength,

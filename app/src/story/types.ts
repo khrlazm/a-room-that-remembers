@@ -23,6 +23,10 @@ export interface Beat {
   gate?: string;
   /** Voiceover filename under /vo/. Beats without one fall back to timers. */
   voice?: string;
+  /** Chapter to drift through after this beat. Absent means no coda. */
+  coda?: string;
+  /** How long the coda lasts. Ignored without `coda`. */
+  codaMs?: number;
   durationMs: number;
   lines: Line[];
 }

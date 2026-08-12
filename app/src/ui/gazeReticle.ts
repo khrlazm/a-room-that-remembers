@@ -17,18 +17,23 @@ const STANDOFF = 0.26;
 const REDRAW_STEP = 0.02;
 
 /**
- * Palette: dark. Both strokes.
+ * Palette: a dark opaque disc with the ring drawn on it.
  *
- * A dark grey ring that fills with near-black. Nothing pale, nothing warm,
- * nothing that glows -- earlier versions kept reaching for attention with light
- * tones and a halo, and every one of them read as interface pasted over the
- * room rather than as something in it.
+ * The disc is the point. Every earlier attempt tried to make a bare ring
+ * survive both the bright window and the unlit corners, and each compromise
+ * failed on one or the other. An opaque backing supplies its own background, so
+ * the ring's contrast no longer depends on whatever happens to be behind it --
+ * and the element still reads as dark, because the disc is what you mostly see.
  */
 const RETICLE = {
-  /** The unfilled ring. */
-  track: 'rgba(48, 46, 44, 0.72)',
+  /** The backing disc. Near-opaque, so the room behind it stops mattering. */
+  panel: 'rgba(11, 10, 9, 0.93)',
+  /** A soft edge on the disc so it does not read as a cut-out hole. */
+  panelEdge: 'rgba(150, 144, 134, 0.22)',
+  /** The unfilled ring, legible against the disc. */
+  track: 'rgba(122, 117, 110, 0.85)',
   /** The dwell fill. */
-  progress: 'rgba(8, 8, 8, 0.97)',
+  progress: 'rgba(236, 231, 222, 0.98)',
 };
 
 /**
@@ -154,6 +159,15 @@ export class GazeReticle {
       ctx.lineWidth = width;
       ctx.stroke();
     };
+
+    // The backing disc, drawn first so everything else sits on it.
+    ctx.beginPath();
+    ctx.arc(c, c, radius + 9, 0, Math.PI * 2);
+    ctx.fillStyle = RETICLE.panel;
+    ctx.fill();
+    ctx.strokeStyle = RETICLE.panelEdge;
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
 
     // Track: says "this is lookable" the moment the gaze lands.
     ring(0, Math.PI * 2, RETICLE.track, 6);

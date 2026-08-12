@@ -7,7 +7,14 @@ import type { AbstractMesh } from '@babylonjs/core/Meshes/abstractMesh';
 import { LoadAssetContainerAsync } from '@babylonjs/core/Loading/sceneLoader';
 import { Vector3 } from '@babylonjs/core/Maths/math.vector';
 
-import { applyBakedMaterials, extraString, EXTRA_GATE_ID } from './materialFixup';
+import {
+  applyBakedMaterials,
+  extrasOf,
+  extraString,
+  EXTRA_GATE_ID,
+  EXTRA_GRAB,
+  EXTRA_MASS,
+} from './materialFixup';
 
 /** Prefixes from content/blender/lib/naming.py. */
 const ANCHOR_PREFIX = 'ANCHOR_';
@@ -17,6 +24,13 @@ export interface Gate {
   mesh: AbstractMesh;
 }
 
+/** An object a coda lets the viewer catch, tagged `grab` in Blender. */
+export interface Loose {
+  id: string;
+  mesh: AbstractMesh;
+  mass: number;
+}
+
 export interface Chapter {
   id: string;
   container: AssetContainer;
@@ -24,6 +38,8 @@ export interface Chapter {
   anchors: Map<string, TransformNode>;
   /** Gaze targets, keyed by the `gateId` extra. */
   gates: Map<string, Gate>;
+  /** Catchable objects, from the `grab` extra. Empty outside codas. */
+  loose: Loose[];
   addToScene(): void;
   /** Toggle visibility without unloading. Used to swap the hub for an era. */
   setVisible(visible: boolean): void;
@@ -56,6 +72,7 @@ export async function loadChapter(scene: Scene, id: string): Promise<Chapter> {
   }
 
   const gates = new Map<string, Gate>();
+  const loose: Loose[] = [];
   for (const mesh of container.meshes) {
     // Nothing is pickable unless it is a gate. The merged static mesh is the
     // entire room in one object, so leaving it pickable would make every gaze
@@ -67,6 +84,14 @@ export async function loadChapter(scene: Scene, id: string): Promise<Chapter> {
       mesh.isPickable = true;
       gates.set(gateId, { id: gateId, mesh });
     }
+
+    const extras = extrasOf(mesh);
+    if (extras?.[EXTRA_GRAB]) {
+      // Pickable so the desktop drag path can find it; hands do not need it.
+      mesh.isPickable = true;
+      const mass = typeof extras[EXTRA_MASS] === 'number' ? (extras[EXTRA_MASS] as number) : 0.5;
+      loose.push({ id: mesh.name, mesh, mass });
+    }
   }
 
   let added = false;
@@ -75,6 +100,7 @@ export async function loadChapter(scene: Scene, id: string): Promise<Chapter> {
     container,
     anchors,
     gates,
+    loose,
     addToScene() {
       if (added) return;
       container.addAllToScene();

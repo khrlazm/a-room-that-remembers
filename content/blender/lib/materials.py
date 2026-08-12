@@ -49,6 +49,54 @@ def flat_material(name: str, color: Color, roughness: float = 0.85) -> bpy.types
     return material
 
 
+def occluded_material(
+    name: str,
+    color: Color,
+    distance: float = 0.22,
+    roughness: float = 0.85,
+) -> bpy.types.Material:
+    """A matte surface carrying its own ambient occlusion.
+
+    For the codas, where objects float and turn in the viewer's hands. A dome
+    bake gives even light from every direction, which is what keeps a moving
+    object from carrying a contradictory shadow -- but even light also flattens
+    it, and a low-poly prop with no shading at all reads as paper.
+
+    Ambient occlusion fixes that without reintroducing the problem, because it
+    is **orientation-independent**: it describes how a surface occludes itself,
+    so it stays true however the object is turned. Folded into Base Color here
+    so it bakes in the same COMBINED pass as everything else -- no second bake,
+    no compositor graph, no extra texture.
+
+    `distance` is the control worth reaching for. It sets how far the occlusion
+    search reaches, so larger values darken broad recesses and smaller ones tuck
+    shading into seams only.
+    """
+    material = bpy.data.materials.new(name)
+    tree = _clear_nodes(material)
+    material.use_backface_culling = True
+
+    output = tree.nodes.new("ShaderNodeOutputMaterial")
+    output.location = (300, 0)
+
+    principled = tree.nodes.new("ShaderNodeBsdfPrincipled")
+    principled.location = (0, 0)
+    principled.inputs["Roughness"].default_value = roughness
+    principled.inputs["Metallic"].default_value = 0.0
+
+    # The AO node multiplies its Color input by the computed occlusion, so
+    # feeding it the surface colour and taking Color out is the whole effect.
+    ao = tree.nodes.new("ShaderNodeAmbientOcclusion")
+    ao.location = (-320, 0)
+    ao.inputs["Color"].default_value = (*color, 1.0)
+    ao.inputs["Distance"].default_value = distance
+    ao.samples = 16
+
+    tree.links.new(ao.outputs["Color"], principled.inputs["Base Color"])
+    tree.links.new(principled.outputs["BSDF"], output.inputs["Surface"])
+    return material
+
+
 def emission_material(name: str, color: Color, strength: float = 4.0) -> bpy.types.Material:
     """A surface that emits light -- window glow, lamp shades, the radio dial.
 

@@ -43,6 +43,15 @@ EXTRA_GATE_ID = "gateId"
 # special handling without relying on a fragile name match.
 EXTRA_ROLE = "role"
 
+# Marks an object the viewer can catch during a coda. The runtime gives it a
+# physics body; everything untagged stays where it is.
+EXTRA_GRAB = "grab"
+
+# Body mass in kilograms. Absent means the runtime picks a default -- these are
+# stylised props, so the number is about how readily something responds to a
+# hand rather than about being accurate.
+EXTRA_MASS = "mass"
+
 
 # --- Well-known names -------------------------------------------------------
 

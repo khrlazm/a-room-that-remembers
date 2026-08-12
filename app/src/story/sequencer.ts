@@ -1,14 +1,32 @@
 import type { Scene } from '@babylonjs/core/scene';
 
+import { Vector3 } from '@babylonjs/core/Maths/math.vector';
+
 import type { Chapter } from '../assets/chapters';
-import { loadChapter } from '../assets/chapters';
+import { anchorPosition, loadChapter } from '../assets/chapters';
 import type { Fader } from '../engine/comfort';
 import type { VoicePlayer } from '../audio/voice';
+import type { PhysicsWorld } from '../physics/world';
 import type { Beat, Story } from './types';
+
+/** Just enough of GrabController for the sequencer to start and stop one. */
+export interface GrabLike {
+  readonly holdingCount: number;
+  dispose(): void;
+}
 
 export interface SequencerDeps {
   scene: Scene;
   fader: Fader;
+  /** Builds the grab controller for a coda's world. Supplied by main so the
+   *  sequencer never has to know about XR sessions or input sources. */
+  makeGrabber: (world: PhysicsWorld) => GrabLike;
+  /** Called when a coda's simulation starts and stops, for the perf readout. */
+  onPhysics?: (world: PhysicsWorld | null, grab: GrabLike | null) => void;
+  /** Fires whenever the visible chapter changes, including into and out of a
+   *  coda -- which `onBeatStart` cannot report, since a coda is a second
+   *  chapter inside one beat. */
+  onChapter?: (chapterId: string) => void;
   /** Display a subtitle line, or clear it when passed an empty string. */
   onLine: (text: string) => void;
   /** Called when a beat begins, so input can be armed or disarmed. */
@@ -115,6 +133,13 @@ export class Sequencer {
 
       await this.playLines(beat);
 
+      // The coda: gravity lets go and this era's things drift free.
+      if (beat.coda) {
+        await this.deps.fader.to(1, fadeOutMs);
+        era.setVisible(false);
+        await this.runCoda(beat.coda, beat.codaMs ?? 30000, fadeInMs);
+      }
+
       await this.deps.fader.to(1, fadeOutMs);
       era.setVisible(false);
       hub.setVisible(true);
@@ -189,6 +214,46 @@ export class Sequencer {
     }
 
     await this.timedLines(beat);
+  }
+
+  /**
+   * Load a coda chapter, let the viewer handle it, then put it away.
+   *
+   * Physics is created here and torn down on the way out rather than living for
+   * the whole piece: nothing outside a coda needs a simulation running, and a
+   * standalone headset should not be paying for one through eleven minutes of
+   * narration.
+   */
+  private async runCoda(chapterId: string, durationMs: number, fadeInMs: number): Promise<void> {
+    const coda = await this.load(chapterId);
+    coda.addToScene();
+    coda.setVisible(true);
+
+    // Drift is centred on an anchor authored in Blender, so the containment
+    // radius and the composition cannot disagree with each other.
+    const centre =
+      anchorPosition(coda, 'drift') ?? anchorPosition(coda, 'focus') ?? Vector3.Zero();
+
+    const { createPhysicsWorld, stir } = await import('../physics/world');
+    const world = await createPhysicsWorld(this.deps.scene, centre);
+    for (const loose of coda.loose) world.add(loose.mesh, loose.id, loose.mass);
+    stir(world);
+
+    const grab = this.deps.makeGrabber(world);
+    this.deps.onPhysics?.(world, grab);
+    this.deps.onChapter?.(chapterId);
+
+    await this.deps.fader.to(0, fadeInMs);
+    await new Promise<void>((resolve) => {
+      this.lineTimers.push(window.setTimeout(resolve, durationMs));
+    });
+
+    grab.dispose();
+    world.dispose();
+    this.deps.onPhysics?.(null, null);
+
+    this.chapters.delete(chapterId);
+    coda.dispose();
   }
 
   /** Fallback when a beat has no take yet, or playback failed. */

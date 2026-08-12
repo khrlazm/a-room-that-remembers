@@ -65,6 +65,31 @@ def add_box(
     return new_mesh_object(name, verts, faces, collection)
 
 
+def add_prop(
+    name: str,
+    size: Vec3,
+    at: Vec3,
+    collection: bpy.types.Collection,
+) -> bpy.types.Object:
+    """A box whose origin sits at its own centre.
+
+    `add_box` writes vertices at absolute coordinates and leaves the object
+    origin at the world origin. That is harmless for anything destined to be
+    merged into one static mesh, where the transform is thrown away anyway --
+    but it is fatal for a physics body. A rigid body is placed where its
+    *transform* says, so a whole set of props built that way all report a
+    position of (0, 0, 0): containment measures their distance from the origin
+    rather than from where they appear, and a grab measures the reach to the
+    origin instead of to the object.
+
+    Anything that will move at runtime, or be positioned by the runtime at all,
+    should be built with this.
+    """
+    obj = add_box(name, size, (0.0, 0.0, 0.0), collection)
+    obj.location = at
+    return obj
+
+
 # --- Planar rectangles ------------------------------------------------------
 
 

@@ -34,6 +34,8 @@
       "gate": "radio",
       "chapter": "era_radio",
       "voice": "radio.mp3",
+      "coda": "coda_radio",
+      "codaMs": 30000,
       "durationMs": 67700,
       "lines": [
         { "atMs": 700, "text": "Ah. That one. That one was Mrs Ellery's, two streets over." },

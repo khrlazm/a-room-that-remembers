@@ -30,6 +30,10 @@ const BUDGET = {
   primitives: 40, // proxy for draw calls
   triangles: 60_000,
   bytes: 4 * 1024 * 1024,
+  // Every grabbable becomes a rigid body plus a convex hull. Havok handles far
+  // more than this on desktop, but a Quest 2 has to hold 72fps while also
+  // drawing the room, so the ceiling is deliberately low.
+  grabbables: 18,
 };
 
 const ANCHOR_PREFIX = 'ANCHOR_';
@@ -73,9 +77,39 @@ async function main() {
     }
 
     const gates = [];
+    let grabbables = 0;
     for (const node of nodes) {
       const name = node.getName();
       const extras = node.getExtras() ?? {};
+
+      if (extras.grab) {
+        grabbables += 1;
+        if (!node.getMesh()) {
+          fail(chapterId, `"${name}" is tagged grab but has no mesh, so it cannot be caught`);
+        }
+        if (extras.mass !== undefined && typeof extras.mass !== 'number') {
+          fail(chapterId, `"${name}" has a non-numeric mass extra (${typeof extras.mass})`);
+        }
+
+        // A grabbable must carry its position in its transform, not baked into
+        // its vertices. A rigid body is placed where the transform says, so a
+        // prop authored the other way sits at the origin as far as physics is
+        // concerned: containment measures from there and grab reach measures to
+        // there, however correct it looks on screen. Use add_prop(), not
+        // add_box(), in the scene script.
+        const translation = node.getTranslation();
+        const atOrigin =
+          Math.abs(translation[0]) < 1e-6 &&
+          Math.abs(translation[1]) < 1e-6 &&
+          Math.abs(translation[2]) < 1e-6;
+        if (atOrigin) {
+          fail(
+            chapterId,
+            `grabbable "${name}" has an identity transform -- its position is baked into ` +
+              `its vertices, so physics will treat it as sitting at the origin`,
+          );
+        }
+      }
 
       if (node.getMesh() && !extras.unlit) {
         fail(
@@ -131,6 +165,9 @@ async function main() {
     if (triangles > BUDGET.triangles) {
       fail(chapterId, `${triangles} triangles exceeds budget of ${BUDGET.triangles}`);
     }
+    if (grabbables > BUDGET.grabbables) {
+      fail(chapterId, `${grabbables} grabbables exceeds the physics budget of ${BUDGET.grabbables}`);
+    }
     if (bytes > BUDGET.bytes) {
       fail(chapterId, `${(bytes / 1024 / 1024).toFixed(2)} MB exceeds budget of ${BUDGET.bytes / 1024 / 1024} MB`);
     }
@@ -149,6 +186,7 @@ async function main() {
         `${String(triangles).padStart(6)} tris  ` +
         `${(bytes / 1024).toFixed(1).padStart(7)} KB  ` +
         `gates: ${gates.length ? gates.join(', ') : '-'}  ` +
+        `grab: ${grabbables || '-'}  ` +
         `anchors: ${anchors.length ? anchors.join(', ') : '-'}`,
     );
   }
@@ -164,6 +202,9 @@ async function main() {
       }
       if (beat.chapter && !files.includes(`${beat.chapter}.glb`)) {
         problems.push(`story.json: beat "${beat.id}" needs chapter "${beat.chapter}", which is not built`);
+      }
+      if (beat.coda && !files.includes(`${beat.coda}.glb`)) {
+        problems.push(`story.json: beat "${beat.id}" drifts into coda "${beat.coda}", which is not built`);
       }
 
       // Subtitle cues against the real length of the take. Timings written
