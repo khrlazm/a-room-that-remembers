@@ -233,6 +233,7 @@ def add_radio(
     body: bpy.types.Material,
     dial: bpy.types.Material,
     as_gate: bool,
+    mesh: str | None = None,
 ) -> tuple[bpy.types.Object, bpy.types.Object]:
     """The radio on the bench: the object this era belongs to.
 
@@ -241,8 +242,19 @@ def add_radio(
     it as something to trigger while its story is already playing.
     """
     name = gate_name("radio") if as_gate else f"{prefix}_radio"
-    radio = add_box(name, (0.36, 0.22, 0.24), (-0.52, -1.16, BENCH_TOP + 0.12), collection)
-    assign(radio, body)
+    at = (-0.52, -1.16, BENCH_TOP + 0.12)
+
+    if mesh is not None:
+        # An external mesh, for when the radio needs to read as a specific
+        # wireless set rather than as a box the narration calls one. Comes back
+        # budgeted, re-materialled and pivoted at its own centre, so everything
+        # below treats it exactly as it would the box.
+        from .ingest import ingest
+
+        radio = ingest(mesh, name, collection, tier="hero", material=body, at=at, longest=0.36)
+    else:
+        radio = add_box(name, (0.36, 0.22, 0.24), at, collection)
+        assign(radio, body)
     if as_gate:
         set_extras(radio, gateId="radio", role="gate")
 
